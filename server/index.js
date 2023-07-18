@@ -16,197 +16,197 @@ httpServer.listen(5000);
 
 // game variables ////////////////////////////////////////////////////////////////
 
-const Villager = require("./src/Villager.js");
-const Facility = require("./src/Facility.js");
-const Food = require("./src/Food.js");
-const Seed = require("./src/Seed.js");
-const Material = require("./src/Material.js");
-const ItemStack = require("./src/ItemStack.js");
-const Farmland = require("./src/Farmland.js");
-const Tree = require("./src/Tree.js");
+const Game = require("./src/Game.js");
+const Player = require("./src/Player.js");
 
-const VILLAGER_COUNT = 12;
-const FARMLAND_COUNT = 32;
-const TREE_COUNT = 8;
-
-const FARMLAND_UNLOCKED = false;
-const FARMLAND_LOCKED = true;
-
-const ITEMS = {
-    cucumber: new Food("cucumber", "cucumber"),
-    tomato: new Food("tomato", "tomato"),
-    potato: new Food("potato", "potato"),
-    carrot: new Food("carrot", "carrot"),
-    apple: new Food("apple", "apple"),
-
-    cucumberSeed: undefined,
-    tomatoSeed: undefined,
-    potatoSeed: undefined,
-    carrotSeed: undefined,
-
-    wood: new Material("wood", "wood", 3),
-    brick: new Material("brick", "brick", 2),
-    steel: new Material("steel", "steel", 5),
-};
-
-let day = 1;
-let season = "spring";
-let daysUntilNextSeason = 20;
-let budget = 1600;
-
-let villagers = [];
-let paths = [...Array(22)].map(e => Array(26).fill('-'));
-
-let farm = [];
-let trees = [];
-
-let facilities = {
-    "water": new Facility(),
-    "farming": new Facility(),
-    "education": new Facility(),
-    "housing": new Facility()
-};
-
-let inventory = [];
+const MAX_PLAYERS = 6;
 
 
-// initialize ////////////////////////////////////////////////////////////////
+// lobby ////////////////////////////////////////////////////////////////
 
-function initPaths()
+let games = {};     // dictionary of waiting and ongoing games, key = roomId
+
+function hostGame(socket, playerName)
 {
-    for(let i = 0; i < 26; i++)
+    console.log("host: " + socket.id);
+
+    let roomId = generateRoomId();
+    let game = new Game(roomId);
+    game.players.push(new Player(playerName, socket.id));
+
+    socket.emit("refresh_lobby", game.players, roomId);
+
+    games[roomId] = game;
+}
+
+function joinGame(socket, playerName, roomId)
+{
+    roomId = roomId.toLowerCase();
+
+    if(games[roomId])
     {
-        paths[0][i] = 'x';
-        paths[21][i] = 'x';
+        if(games[roomId].players.length == MAX_PLAYERS)
+        {
+            socket.emit("error_message", "game is full");
+            return;
+        }
+
+        if(games[roomId].started)
+        {
+            socket.emit("error_message", "game has already started");
+            return;
+        }
+
+        games[roomId].players.push(new Player(playerName, socket.id));
+        socket.emit("join_lobby");
+        socket.emit("refresh_roles", games[roomId].rolesPresent);
+
+        games[roomId].players.forEach(player => {
+            io.sockets.to(player.id).emit("refresh_lobby", games[roomId].players, roomId);
+        });
+    }
+    else
+        socket.emit("error_message", "game not found");
+}
+
+function generateRoomId()   // returns 4 letter string
+{
+    let roomId = "";
+    const characters = "abcdefghijklmnopqrstuvwxyz";
+    for(let i = 0; i < 4; i++)
+        roomId += characters.charAt(Math.floor(Math.random() * characters.length));
+
+    // check for existing id
+    if(games[roomId])
+        return generateRoomId();
+
+    return roomId;
+}
+
+function selectRole(socket, roomId, newRole)
+{
+    // if role is not taken
+    if(newRole != "" && !games[roomId].rolesPresent[newRole])
+    {
+        // set role to true
+        games[roomId].rolesPresent[newRole] = true;
+
+        let player = games[roomId].players.find(player => player.id == socket.id);
+
+        // free old role
+        if(player.role != "") games[roomId].rolesPresent[player.role] = false;
+
+        player.role = newRole;
+        socket.emit("select_role", newRole);
+
+        games[roomId].players.forEach(player => {
+            io.sockets.to(player.id).emit("refresh_roles", games[roomId].rolesPresent);
+            io.sockets.to(player.id).emit("refresh_lobby", games[roomId].players, roomId);
+        });
     }
 
-    for(let i = 1; i < 22; i++)
+    else if(newRole == "")
     {
-        paths[i][0] = 'x';
-        paths[i][25] = 'x';
-    }
+        let player = games[roomId].players.find(player => player.id == socket.id);
 
-    // for(let i = 2; i < 5; i++)
-    // {
-    //     for(let j = 9; j < 12; j++)
-    //         paths[i][j] = 'x';
-    //     for(let j = 14; j < 24; j++)
-    //         paths[i][j] = 'x';
-    // }
+        // player already has no role, do nothing
+        if(player.role == "") return;
 
-    for(let i = 1; i < 6; i++)
-    {
-        for(let j = 1; j < 25; j++)
-            paths[i][j] = 'x';
-    }
-        
-    for(let i = 6; i < 12; i++)
-    {
-        for(let j = 2; j < 12; j++)
-            paths[i][j] = 'x';
-        for(let j = 14; j < 24; j++)
-            paths[i][j] = 'x';
-    }
+        games[roomId].rolesPresent[player.role] = false;
+        player.role = newRole;
+        socket.emit("select_role", newRole);
 
-    for(let i = 14; i < 20; i++)
-    {
-        for(let j = 2; j < 12; j++)
-            paths[i][j] = 'x';
-        for(let j = 14; j < 24; j++)
-            paths[i][j] = 'x';
+        games[roomId].players.forEach(player => {
+            io.sockets.to(player.id).emit("refresh_roles", games[roomId].rolesPresent);
+            io.sockets.to(player.id).emit("refresh_lobby", games[roomId].players, roomId);
+        });
     }
 }
 
-function initVillagers()
+function ready(socket, roomId)
 {
-    for(let i = 0; i < VILLAGER_COUNT; i++)
-    {
-        let villager = new Villager(villagers, paths);
-        villagers.push(villager);
-    }
+    let player = games[roomId].players.find(player => player.id == socket.id);
+    player.ready = true;
 
-    // sort by y position
-    villagers.sort(function(a, b) {
-        return a.position.y - b.position.y;
+    let start = true;
+    games[roomId].players.forEach(player => {
+        if(!player.ready)
+        start = false;
+    });
+
+    games[roomId].players.forEach(player => {
+        io.sockets.to(player.id).emit("refresh_lobby", games[roomId].players, roomId);
+    });
+
+    if(start)
+        startGame(roomId);
+}
+
+function startGame(roomId)
+{
+    let game = games[roomId];
+
+    game.initPaths();
+    game.initVillagers();
+    game.initFacilities();
+    game.initItems();
+    game.initFarmland();
+    game.initTrees();
+    game.started = true;
+
+    game.players.forEach(player => {
+        io.sockets.to(player.id).emit("start_game");
+
+        io.sockets.to(player.id).emit("day", game.day, game.daysUntilNextSeason);
+        io.sockets.to(player.id).emit("season", game.season);
+        io.sockets.to(player.id).emit("budget", game.budget);
+        io.sockets.to(player.id).emit("villagers", game.villagers);
+        io.sockets.to(player.id).emit("facilities", game.facilities);
+        io.sockets.to(player.id).emit("inventory", game.inventory);
+        io.sockets.to(player.id).emit("farm", game.farm);
+        io.sockets.to(player.id).emit("trees", game.trees, false);
     });
 }
 
-function initFacilities()
+function disconnect(socket)
 {
-    let padding = 10;
+    console.log("disconnected: " + socket.id);
 
-    facilities["water"].label = "water";
-    facilities["water"].labelColor = "#33CCFF";
-    facilities["water"].interactBox = {x: 176 - padding, y: 112 - padding, width: 128 + 2 * padding, height: 64 + 2 * padding};
-
-    facilities["farming"].label = "farming";
-    facilities["farming"].labelColor = "#00CC33";
-    facilities["farming"].interactBox = {x: 368 - padding, y: 112 - padding, width: 128 + 2 * padding, height: 64 + 2 * padding};
-
-    facilities["education"].label = "education";
-    facilities["education"].labelColor = "#FFCC66";
-    facilities["education"].interactBox = {x: 176 - padding, y: 240 - padding, width: 128 + 2 * padding, height: 64 + 2 * padding};
-
-    facilities["housing"].label = "housing";
-    facilities["housing"].labelColor = "#FF6666";
-    facilities["housing"].interactBox = {x: 368 - padding, y: 240 - padding, width: 128 + 2 * padding, height: 64 + 2 * padding};
-}
-
-function initItems()
-{
-    ITEMS.cucumberSeed = new Seed("cucumber seed", "cucumber_seed", ITEMS.cucumber);
-    ITEMS.tomatoSeed = new Seed("tomato seed", "tomato_seed", ITEMS.tomato);
-    ITEMS.potatoSeed = new Seed("potato seed", "potato_seed", ITEMS.potato);
-    ITEMS.carrotSeed = new Seed("carrot seed", "carrot_seed", ITEMS.carrot);
-
-    inventory.push(new ItemStack(ITEMS.cucumberSeed, 4));
-    inventory.push(new ItemStack(ITEMS.tomatoSeed, 4));
-    inventory.push(new ItemStack(ITEMS.potatoSeed, 4));
-    inventory.push(new ItemStack(ITEMS.carrotSeed, 4));
-    // inventory.push(new ItemStack(ITEMS.cucumber, 4));
-    // inventory.push(new ItemStack(ITEMS.tomato, 4));
-    // inventory.push(new ItemStack(ITEMS.potato, 4));
-    // inventory.push(new ItemStack(ITEMS.carrot, 4));
-    // inventory.push(new ItemStack(ITEMS.apple, 4));
-    // inventory.push(new ItemStack(ITEMS.wood, 4));
-    // inventory.push(new ItemStack(ITEMS.brick, 4));
-    // inventory.push(new ItemStack(ITEMS.steel, 4));
-}
-
-function initFarmland()
-{
-    let startingAmount = 8;
-
-    for(let i = 0; i < FARMLAND_COUNT; i++)
+    // remove player from game
+    let found = false;
+    for (const [id, game] of Object.entries(games))
     {
-        let farmland = new Farmland(i < startingAmount ? FARMLAND_UNLOCKED : FARMLAND_LOCKED);
-        farmland.interactBox = {
-            x: 16 * (i % 8 + 23),
-            y: 16 * (Math.floor(i / 8) + 7),
-            width: 16,
-            height: 16
+        for(let j = 0; j < games[id].players.length; j++)
+        {
+            if(socket.id == games[id].players[j].id)
+            {
+                // free role
+                if(games[id].players[j].role != "") games[id].rolesPresent[games[id].players[j].role] = false;
+
+                games[id].players.splice(j, 1);
+
+                // if last player disconnected, remove game
+                if(games[id].players.length == 0)
+                    delete games[id];
+
+                else
+                {
+                    for(j = 0; j < games[id].players.length; j++)
+                    {
+                        io.sockets.to(games[id].players[j].id).emit("refresh_roles", games[id].rolesPresent);
+                        io.sockets.to(games[id].players[j].id).emit("refresh_lobby", games[id].players, games[id].roomId);
+                    }
+                }
+
+                found = true;
+                break;
+            }
         }
-        farmland.label = "empty";
-        farmland.id = i;
-        farm.push(farmland);
+
+        if(found) break;
     }
 }
 
-function initTrees()
-{
-    for(let i = 0; i < TREE_COUNT; i++)
-    {
-        let tree = new Tree();
-        tree.interactBox = {
-            x: 16 * (i % 8 + 23),
-            y: 16 * (Math.floor(i / 8) + 3),
-            width: 16,
-            height: 16
-        }
-        tree.label = "?";
-        trees.push(tree);
-    }
-}
 
 // calculations ////////////////////////////////////////////////////////////////
 
@@ -217,13 +217,13 @@ function addProgress(facility, amount)
         facility.progress = facility.progressMax;
 }
 
-function updateFacilityProgress()
+function updateFacilityProgress(game)
 {
-    villagers.forEach(villager => {
+    game.villagers.forEach(villager => {
         
         let baseProgress, leastEffectiveMult, mostEffectiveMult = 0;
 
-        switch(facilities["education"].level)
+        switch(game.facilities["education"].level)
         {
             case 1:
                 baseProgress = 2;
@@ -257,20 +257,20 @@ function updateFacilityProgress()
         if(!villager.currentTask) return;
 
         if(villager.currentTask == villager.mostEffectiveTask)
-            addProgress(facilities[villager.currentTask], baseProgress * mostEffectiveMult);
+            addProgress(game.facilities[villager.currentTask], baseProgress * mostEffectiveMult);
 
         else if(villager.currentTask == villager.leastEffectiveTask)
-            addProgress(facilities[villager.currentTask], baseProgress * leastEffectiveMult);
+            addProgress(game.facilities[villager.currentTask], baseProgress * leastEffectiveMult);
 
         else
-            addProgress(facilities[villager.currentTask], baseProgress);
+            addProgress(game.facilities[villager.currentTask], baseProgress);
 
     });
 }
 
-function updateCropGrowth()
+function updateCropGrowth(game)
 {
-    farm.forEach((farmland) => {
+    game.farm.forEach((farmland) => {
         if(farmland.daysLeft > 0)
         {
             farmland.daysLeft--;
@@ -282,12 +282,12 @@ function updateCropGrowth()
     });
 }
 
-function updateVillagers()
+function updateVillagers(game)
 {
-    villagers.forEach(villager => {
+    game.villagers.forEach(villager => {
         
         // update happiness based on hunger, except for day 1
-        if(day > 1)
+        if(game.day > 1)
         {
             if(villager.hunger == 5)
                 villager.happiness += 5;
@@ -305,83 +305,86 @@ function updateVillagers()
     });
 }
 
-function nextDay()
+function nextDay(game)
 {
-    updateCropGrowth();
-    updateVillagers();
-    updateFacilityProgress();
+    updateCropGrowth(game);
+    updateVillagers(game);
+    updateFacilityProgress(game);
 
     // increment day
-    day++;
-    daysUntilNextSeason--;
+    game.day++;
+    game.daysUntilNextSeason--;
 }
 
-initPaths();
-initVillagers();
-initFacilities();
-initItems();
-initFarmland();
-initTrees();
+
 
 io.on("connection", (socket) => {
     console.log("connected: " + socket.id);
-    socket.emit("day", day, daysUntilNextSeason);
-    socket.emit("season", season);
-    socket.emit("budget", budget);
-    socket.emit("villagers", villagers);
-    socket.emit("facilities", facilities);
-    socket.emit("inventory", inventory);
-    socket.emit("farm", farm);
-    socket.emit("trees", trees, false);
+    
+    // lobby
+    socket.on("host_game", (_playerName) => hostGame(socket, _playerName));
+    socket.on("join_game", (_playerName, _roomId) => joinGame(socket, _playerName, _roomId));
+    socket.on("select_role", (_roomId, _newRole) => selectRole(socket, _roomId, _newRole));
+    socket.on("ready", (_roomId) => ready(socket, _roomId));
 
-    socket.on("host_game", () => {
-        
+    socket.on("farm", (_roomId, _farm) => {
+        let game = games[_roomId];
+        game.farm = _farm;
+        game.players.forEach(player => io.sockets.to(player.id).emit("farm", game.farm));
     });
 
-    socket.on("farm", (_farm) => {
-        farm = _farm;
-        socket.broadcast.emit("farm", farm);
-    });
+    socket.on("assign_villager", (_roomId, _villager, _oldFacility, _newFacility) => {
+        let game = games[_roomId];
 
-    socket.on("assign_villager", (_villager, _oldFacility, _newFacility) => {
-
-        for(let i = 0; i < villagers.length; i++)
+        for(let i = 0; i < game.villagers.length; i++)
         {
-            if(villagers[i].name == _villager.name)
+            if(game.villagers[i].name == _villager.name)
             {
-                villagers[i] = _villager;
+                game.villagers[i] = _villager;
                 break;
             }
         }
 
         if(_oldFacility)
-            facilities[_oldFacility.label] = _oldFacility;
+            game.facilities[_oldFacility.label] = _oldFacility;
 
-        facilities[_newFacility.label] = _newFacility;
+        game.facilities[_newFacility.label] = _newFacility;
 
-        io.sockets.emit("villagers", villagers);
-        io.sockets.emit("facilities", facilities);
+        game.players.forEach(player => {
+            io.sockets.to(player.id).emit("villagers", game.villagers);
+            io.sockets.to(player.id).emit("facilities", game.facilities);
+        });
 
     });
 
-    socket.on("villager", (_villager) => {
-        for(let i = 0; i < villagers.length; i++)
+    socket.on("villager", (_roomId, _villager) => {
+        let game = games[_roomId];
+        for(let i = 0; i < game.villagers.length; i++)
         {
-            if(villagers[i].name == _villager.name)
+            if(game.villagers[i].name == _villager.name)
             {
-                villagers[i] = _villager;
+                game.villagers[i] = _villager;
                 break;
             }
         }
     });
 
-    socket.on("end_turn", () => {
-        nextDay();
+    socket.on("end_turn", (_roomId) => {
+        let game = games[_roomId];
+        nextDay(game);
 
-        io.sockets.emit("day", day, daysUntilNextSeason);
-        io.sockets.emit("villagers", villagers);
-        io.sockets.emit("facilities", facilities);
-        io.sockets.emit("farm", farm);
+        game.players.forEach(player => {
+            io.sockets.to(player.id).emit("day", game.day, game.daysUntilNextSeason);
+            io.sockets.to(player.id).emit("villagers", game.villagers);
+            io.sockets.to(player.id).emit("facilities", game.facilities);
+            io.sockets.to(player.id).emit("farm", game.farm);
+        });
+    });
+
+    socket.on("disconnect", () => disconnect(socket));
+
+    socket.on("server_info", () => {
+        socket.emit("server_info", games);
     });
 });
 

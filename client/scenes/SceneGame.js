@@ -3,6 +3,7 @@ Object.entries(global).forEach(([name, exported]) => window[name] = exported);
 
 import {img} from "../assets.js";
 
+import * as sm from "../src/SceneManager.js";
 import { Button } from "../src/Button.js";
 import { HarvestNotif } from "../src/HarvestNotif.js";
 import { ItemStack } from "../src/ItemStack.js";
@@ -11,8 +12,6 @@ import { ItemStack } from "../src/ItemStack.js";
 // game variables ////////////////////////////////////////////////////////////////
 
 const INVENTORY_SIZE = 32;
-
-let role = "sociologist";
 
 let day = 0;
 let season = "";
@@ -103,16 +102,14 @@ socket.on("trees", (_trees, _treesUnlocked) => {
 
 // event handlers ////////////////////////////////////////////////////////////////
 
-canvas.addEventListener("click", (e) => {
-
-    if(currentScene != SCENE.game) return;
-
+function onClick(e)
+{
     if(getActiveWindow() == "notification") return;
 
     if(mouseInteract(button.endTurn))
     {
         closeInventory();
-        socket.emit("end_turn");
+        socket.emit("end_turn", roomId);
         return;
     }
 
@@ -267,12 +264,10 @@ canvas.addEventListener("click", (e) => {
             }
         }
     }
-});
+}
 
-window.addEventListener("keydown", (e) => {
-
-    if(currentScene != SCENE.game) return;
-
+function onKeyDown(e)
+{
     if(getActiveWindow() == "notification") return;
 
     switch(e.key)
@@ -289,7 +284,7 @@ window.addEventListener("keydown", (e) => {
         default:
             break;
     }
-});
+}
 
 
 // main ////////////////////////////////////////////////////////////////
@@ -302,6 +297,15 @@ export function init()
     ctx.imageSmoothingEnabled = false;
     ctx.textAlign = "left";
     ctx.textBaseline = "top";
+
+    canvas.addEventListener("click", onClick);
+    window.addEventListener("keydown", onKeyDown);
+}
+
+export function exit()
+{
+    canvas.removeEventListener("click", onClick);
+    window.removeEventListener("keydown", onKeyDown);
 }
 
 function triggerNotifications()
@@ -359,7 +363,7 @@ function plantCrop(farmland)
     farmland.crop = heldItemStack.item;
     farmland.daysLeft = 4;
     farmland.label = farmland.daysLeft + " days";
-    socket.emit("farm", farm);
+    socket.emit("farm", roomId, farm);
 
     useItem();
 }
@@ -372,7 +376,7 @@ function harvestCrop()
 
     farmland.crop = null;
     farmland.label = "empty";
-    socket.emit("farm", farm);
+    socket.emit("farm", roomId, farm);
 
     infoSelected = null;
 
@@ -430,7 +434,7 @@ function finishAssign(facility)
     else
         selectedVillager.currentTask = null;
 
-    socket.emit("assign_villager", selectedVillager, oldFacility, facility);
+    socket.emit("assign_villager", roomId, selectedVillager, oldFacility, facility);
 
     selectedVillager = null;
     button.assignVillager.enabled = true;
@@ -450,7 +454,7 @@ function feedVillager(villager)
     else
         villager.hunger = Math.min(villager.hunger + 2, 5);
 
-    socket.emit("villager", villager);
+    socket.emit("villager", roomId, villager);
 
     useItem();
 }
@@ -999,6 +1003,6 @@ export function draw()
     drawHeldItemStack();
     drawNotification();
 
-    if(currentScene == SCENE.game)
+    if(sm.currentScene == sm.SCENE.game)
         requestAnimationFrame(draw);
 }

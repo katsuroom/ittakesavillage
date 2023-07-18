@@ -1,36 +1,19 @@
 import * as global from "./global.js";
 Object.entries(global).forEach(([name, exported]) => window[name] = exported);
 
-import * as SceneMenu from "./scenes/SceneMenu.js";
-import * as SceneGame from "./scenes/SceneGame.js";
+import * as sm from "./src/SceneManager.js";
 
 socket.on("connect", () => {
     console.log("connected: " + socket.id);
 });
 
+socket.on("server_info", (_games) => {
+    console.log(_games);
+});
 
-export function loadScene(scene)
-{
-    if(currentScene != scene)
-    {
-        switch(scene)
-        {
-            case SCENE.menu:
-                SceneMenu.init();
-                requestAnimationFrame(SceneMenu.draw);
-                break;
-            
-            case SCENE.game:
-                // setTimeout(() => {
-                    SceneGame.init();
-                    requestAnimationFrame(SceneGame.draw);
-                // }, 100);
-                break;
-        }
+window.addEventListener("keydown", (e) => {
+    if(e.key == "v")
+        socket.emit("server_info");
+});
 
-        currentScene = scene;
-    }
-}
-
-
-loadScene(SCENE.menu);
+sm.loadScene(sm.SCENE.menu);

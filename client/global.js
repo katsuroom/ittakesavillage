@@ -6,16 +6,6 @@ export const ctx = canvas.getContext("2d", { willReadFrequently: true });
 export const SCALE = 2;
 
 
-// scene management ////////////////////////////////////////////////////////////////
-
-export const SCENE = {
-    menu: 0,
-    game: 1,
-};
-
-export let currentScene = undefined;
-
-
 // mouse events ////////////////////////////////////////////////////////////////
 
 export let mouse = {x: 0, y: 0};
@@ -29,9 +19,18 @@ canvas.addEventListener("mousemove", (e) => {
 
 // game variables ////////////////////////////////////////////////////////////////
 export let playerName = "";
+export let role = "";
+export let roomId = "";
 
 
 // functions ////////////////////////////////////////////////////////////////
+
+export function buttonClick(button)
+{
+    if(!button.enabled) return false;
+
+    return mouseInteract(button);
+}
 
 export function mouseInteract(obj)
 {

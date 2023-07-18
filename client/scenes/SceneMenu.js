@@ -1,10 +1,9 @@
 import * as global from "../global.js";
 Object.entries(global).forEach(([name, exported]) => window[name] = exported);
 
+import * as sm from "../src/SceneManager.js";
 import { Button } from "../src/Button.js";
 import { TextField } from "../src/TextField.js";
-
-import { loadScene } from "../index.js";
 
 
 const buttons = {
@@ -19,11 +18,11 @@ const textFields = {
 
 let selectedTextField = null;
 
+let errorMessage = "";
 
-canvas.addEventListener("click", (e) => {
 
-    if(currentScene != SCENE.menu) return;
-
+function onClick(e)
+{
     if(mouseInteract(textFields.playerName))
     {
         selectedTextField = textFields.playerName;
@@ -36,27 +35,52 @@ canvas.addEventListener("click", (e) => {
         return;
     }
 
-    if(mouseInteract(buttons.hostGame))
+    if(buttonClick(buttons.hostGame))
     {
         playerName = textFields.playerName.text;
-        // loadScene(SCENE.game);
+        socket.emit("host_game", playerName);
+        sm.loadScene(sm.SCENE.lobby);
+        return;
+    }
+
+    if(buttonClick(buttons.joinGame))
+    {
+        playerName = textFields.playerName.text;
+        socket.emit("join_game", playerName, textFields.roomCode.text);
         return;
     }
 
     selectedTextField = null;
-});
+}
 
-window.addEventListener("keydown", (e) => {
-
-    if(currentScene != SCENE.menu) return;
+function onKeyDown(e)
+{
+    if(sm.currentScene != sm.SCENE.menu) return;
 
     if(selectedTextField)
     {
         if(e.key.length == 1)
+        {
             selectedTextField.text += e.key;
+            if(selectedTextField == textFields.roomCode) errorMessage = "";
+        }
         else if(e.key == "Backspace")
+        {
             selectedTextField.text = selectedTextField.text.substring(0, selectedTextField.text.length - 1);
+            if(selectedTextField == textFields.roomCode) errorMessage = "";
+        }
+
+        buttons.hostGame.enabled = (textFields.playerName.text.length > 0);
+        buttons.joinGame.enabled = (textFields.playerName.text.length > 0 && textFields.roomCode.text.length > 0);
     }
+}
+
+socket.on("join_lobby", () => {
+    sm.loadScene(sm.SCENE.lobby);
+});
+
+socket.on("error_message", (_message) => {
+    errorMessage = _message;
 });
 
 
@@ -68,6 +92,18 @@ export function init()
     ctx.imageSmoothingEnabled = false;
     ctx.textAlign = "left";
     ctx.textBaseline = "top";
+
+    buttons.hostGame.enabled = false;
+    buttons.joinGame.enabled = false;
+
+    canvas.addEventListener("click", onClick);
+    window.addEventListener("keydown", onKeyDown);
+}
+
+export function exit()
+{
+    canvas.removeEventListener("click", onClick);
+    window.removeEventListener("keydown", onKeyDown);
 }
 
 function drawTextField(textField)
@@ -120,6 +156,9 @@ export function draw()
     drawButton(buttons.hostGame);
     drawButton(buttons.joinGame);
 
-    if(currentScene == SCENE.menu)
+    ctx.fillStyle = "red";
+    ctx.fillText(errorMessage, 10*16*SCALE, 13.5*16*SCALE);
+
+    if(sm.currentScene == sm.SCENE.menu)
         requestAnimationFrame(draw);
 }
