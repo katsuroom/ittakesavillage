@@ -4,7 +4,7 @@ const ItemStack = require("./ItemStack.js");
 const Farmland = require("./Farmland.js");
 const Tree = require("./Tree.js");
 
-const {VILLAGER_COUNT, FARMLAND_COUNT, TREE_COUNT, FARMLAND_UNLOCKED, FARMLAND_LOCKED, ITEMS} = require("../global.js");
+const global = require("../global.js");
 
 class Game {
     constructor(roomId)
@@ -94,7 +94,7 @@ class Game {
 
     initVillagers()
     {
-        for(let i = 0; i < VILLAGER_COUNT; i++)
+        for(let i = 0; i < global.VILLAGER_COUNT; i++)
         {
             let villager = new Villager(this.villagers, this.paths);
             this.villagers.push(villager);
@@ -127,29 +127,29 @@ class Game {
         this.facilities["housing"].interactBox = {x: 368 - padding, y: 240 - padding, width: 128 + 2 * padding, height: 64 + 2 * padding};
     }
 
-    initItems()
+    initInventory()
     {
-        this.inventory.push(new ItemStack(ITEMS.cucumberSeed, 4));
-        this.inventory.push(new ItemStack(ITEMS.tomatoSeed, 4));
-        this.inventory.push(new ItemStack(ITEMS.potatoSeed, 4));
-        this.inventory.push(new ItemStack(ITEMS.carrotSeed, 4));
-        // this.inventory.push(new ItemStack(ITEMS.cucumber, 4));
-        // this.inventory.push(new ItemStack(ITEMS.tomato, 4));
-        // this.inventory.push(new ItemStack(ITEMS.potato, 4));
-        // this.inventory.push(new ItemStack(ITEMS.carrot, 4));
-        // this.inventory.push(new ItemStack(ITEMS.apple, 4));
-        // this.inventory.push(new ItemStack(ITEMS.wood, 4));
-        // this.inventory.push(new ItemStack(ITEMS.brick, 4));
-        // this.inventory.push(new ItemStack(ITEMS.steel, 4));
+        this.inventory.push(new ItemStack(global.ITEMS.cucumberSeed, 4));
+        this.inventory.push(new ItemStack(global.ITEMS.tomatoSeed, 4));
+        this.inventory.push(new ItemStack(global.ITEMS.potatoSeed, 4));
+        this.inventory.push(new ItemStack(global.ITEMS.carrotSeed, 4));
+        // this.inventory.push(new ItemStack(global.ITEMS.cucumber, 4));
+        // this.inventory.push(new ItemStack(global.ITEMS.tomato, 4));
+        // this.inventory.push(new ItemStack(global.ITEMS.potato, 4));
+        // this.inventory.push(new ItemStack(global.ITEMS.carrot, 4));
+        // this.inventory.push(new ItemStack(global.ITEMS.apple, 4));
+        // this.inventory.push(new ItemStack(global.ITEMS.wood, 4));
+        // this.inventory.push(new ItemStack(global.ITEMS.brick, 4));
+        // this.inventory.push(new ItemStack(global.ITEMS.steel, 4));
     }
 
     initFarmland()
     {
         let startingAmount = 8;
 
-        for(let i = 0; i < FARMLAND_COUNT; i++)
+        for(let i = 0; i < global.FARMLAND_COUNT; i++)
         {
-            let farmland = new Farmland(i < startingAmount ? FARMLAND_UNLOCKED : FARMLAND_LOCKED);
+            let farmland = new Farmland(i < startingAmount ? global.FARMLAND_UNLOCKED : global.FARMLAND_LOCKED);
             farmland.interactBox = {
                 x: 16 * (i % 8 + 23),
                 y: 16 * (Math.floor(i / 8) + 7),
@@ -164,18 +164,146 @@ class Game {
 
     initTrees()
     {
-        for(let i = 0; i < TREE_COUNT; i++)
+        for(let i = 0; i < global.TREE_COUNT; i++)
         {
             let tree = new Tree();
-            tree.interactBox = {
-                x: 16 * (i % 8 + 23),
-                y: 16 * (Math.floor(i / 8) + 3),
-                width: 16,
-                height: 16
-            }
-            tree.label = "?";
+
+            tree.id = i;
+
+            if(this.rolesPresent["scientist"])
+                tree.label = "tree";
+            else
+                tree.label = "?";
             this.trees.push(tree);
         }
+    }
+
+    // actions
+
+    pickTree(treeId)
+    {
+        let tree = this.trees.find(tree => tree.id == treeId);
+        tree.daysLeft = global.TREE_GROWTH_TIME;
+    }
+
+    cutTree(treeId)
+    {
+        let tree = this.trees.find(tree => tree.id == treeId);
+        tree.daysLeft = 0;
+        tree.cut = true;
+    }
+
+    // calculations
+
+    addProgress(facility, amount)
+    {
+        facility.progress += amount;
+        if(facility.progress > facility.progressMax)
+            facility.progress = facility.progressMax;
+    }
+
+    updateFacilityProgress()
+    {
+        this.villagers.forEach(villager => {
+            
+            let baseProgress, leastEffectiveMult, mostEffectiveMult = 0;
+
+            switch(this.facilities["education"].level)
+            {
+                case 1:
+                    baseProgress = 2;
+                    leastEffectiveMult = 0.75;
+                    mostEffectiveMult = 1.5;
+                    break;
+                case 2:
+                    baseProgress = 3;
+                    leastEffectiveMult = 0.8;
+                    mostEffectiveMult = 1.6;
+                    break;
+                case 3:
+                    baseProgress = 4;
+                    leastEffectiveMult = 0.85;
+                    mostEffectiveMult = 1.7;
+                    break;
+                case 4:
+                    baseProgress = 5;
+                    leastEffectiveMult = 0.9;
+                    mostEffectiveMult = 1.85;
+                    break;
+                case 5:
+                    baseProgress = 8;
+                    leastEffectiveMult = 1;
+                    mostEffectiveMult = 2;
+                    break;
+                default:
+                    break;
+            }
+
+            if(!villager.currentTask) return;
+
+            if(villager.currentTask == villager.mostEffectiveTask)
+                this.addProgress(this.facilities[villager.currentTask], baseProgress * mostEffectiveMult);
+
+            else if(villager.currentTask == villager.leastEffectiveTask)
+                this.addProgress(this.facilities[villager.currentTask], baseProgress * leastEffectiveMult);
+
+            else
+                this.addProgress(this.facilities[villager.currentTask], baseProgress);
+
+        });
+    }
+
+    updateCropGrowth()
+    {
+        this.farm.forEach((farmland) => {
+            if(farmland.daysLeft > 0)
+            {
+                farmland.daysLeft--;
+                if(farmland.daysLeft == 0)
+                    farmland.label = "ready";
+                else
+                    farmland.label = farmland.daysLeft + " days";
+            }
+        });
+
+        this.trees.forEach((tree) => {
+            if(tree.daysLeft > 0)
+                tree.daysLeft--;
+        });
+    }
+
+    updateVillagers()
+    {
+        this.villagers.forEach(villager => {
+            
+            // update happiness based on hunger, except for day 1
+            if(this.day > 1)
+            {
+                if(villager.hunger == 5)
+                    villager.happiness += 5;
+                else if(villager.hunger == 2 || villager.hunger == 1)
+                    villager.happiness -= 5;
+                else if(villager.hunger == 0)
+                    villager.happiness -= 10;
+            }
+
+            // subtract hunger
+            if(villager.hunger > 0) villager.hunger--;
+
+            villager.fed = false;
+
+        });
+    }
+
+    nextDay()
+    {
+        this.updateCropGrowth();
+        this.updateVillagers();
+        this.updateFacilityProgress();
+
+        // increment day
+        this.day++;
+        this.daysUntilNextSeason--;
     }
 };
 

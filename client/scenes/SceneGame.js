@@ -49,9 +49,14 @@ let currentNotif = null;            // currently displayed notification
 
 const button = {
     endTurn: new Button(35*16, 19*16, 6*16, 2*16, 326, "end turn"),
+
     assignVillager: new Button(1*16, 16*16, 6*16, 1.5*16, 25, "assign"),
     healVillager: new Button(1*16, 17.75*16, 6*16, 1.5*16, 200, "heal"),
-    harvestCrop: new Button(1*16, 16*16, 6*16, 1.5*16, 120, "harvest")
+    
+    harvestCrop: new Button(1*16, 16*16, 6*16, 1.5*16, 120, "harvest"),
+    
+    pickTree: new Button(1*16, 16*16, 6*16, 1.5*16, 120, "pick apple"),
+    cutTree: new Button(1*16, 17.75*16, 6*16, 1.5*16, 0, "cut"),
 };
 
 // socket messages ////////////////////////////////////////////////////////////////
@@ -97,7 +102,36 @@ socket.on("farm", (_farm) => {
 socket.on("trees", (_trees, _treesUnlocked) => {
     trees = _trees;
     treesUnlocked = _treesUnlocked;
+
+    for(let i = 0; i < trees.length; i++)
+    {
+        trees[i].interactBox.x = 16 * (i % 8 + 23);
+        trees[i].interactBox.width = 16;
+
+        if(treesUnlocked)
+        {
+            trees[i].interactBox.y = 16 * 2.5;
+            trees[i].interactBox.height = 24;
+        }
+        else
+        {
+            trees[i].interactBox.y = 16 * 3;
+            trees[i].interactBox.height = 16;
+        }
+    }
+
+    if(selectedInfoType("tree"))
+    {
+        infoSelected = trees.find(obj => obj.id == infoSelected.id);
+        let tree = infoSelected;
+        button.pickTree.enabled = tree.daysLeft == 0 && !tree.cut;
+        button.cutTree.enabled = !tree.cut;
+    }
 });
+
+socket.on("give_item", (_item, _amount) => {
+    giveItem(_item, _amount);
+})
 
 
 // event handlers ////////////////////////////////////////////////////////////////
@@ -106,23 +140,38 @@ function onClick(e)
 {
     if(getActiveWindow() == "notification") return;
 
-    if(mouseInteract(button.endTurn))
+    if(buttonClick(button.endTurn))
     {
         closeInventory();
         socket.emit("end_turn", roomId);
         return;
     }
 
-    if(infoSelected && infoSelected.infoType == "farmland" && mouseInteract(button.harvestCrop))
+    if(selectedInfoType("farmland") && buttonClick(button.harvestCrop))
     {
         harvestCrop();
         return;
     }
 
-    if(infoSelected && infoSelected.infoType == "villager" && button.assignVillager.enabled && mouseInteract(button.assignVillager))
+    if(selectedInfoType("villager") && buttonClick(button.assignVillager))
     {
         startAssign();
         return;
+    }
+
+    if(selectedInfoType("tree"))
+    {
+        if(buttonClick(button.pickTree))
+        {
+            pickTree();
+            return;
+        }
+        
+        else if(buttonClick(button.cutTree))
+        {
+            cutTree();
+            return;
+        }
     }
 
     if(getActiveWindow() == "main")
@@ -215,14 +264,12 @@ function onClick(e)
         trees.forEach(tree => {
             if(mouseInteract(tree))
             {
-                if(selectedVillager)
-                {
-                    selectedVillager = null;
-                    button.assignVillager.enabled = true;
-                }
+                button.pickTree.enabled = tree.daysLeft == 0 && !tree.cut;
+                button.cutTree.enabled = !tree.cut;
+
                 infoSelected = tree;
             }
-        })
+        });
 
         if(infoSelected) return;
 
@@ -329,6 +376,11 @@ function getActiveWindow()
     return windowStack[windowStack.length - 1];
 }
 
+function selectedInfoType(infoType)     // bool
+{
+    return infoSelected && infoSelected.infoType == infoType;
+}
+
 function openInventory()
 {
     if(getActiveWindow() != "inventory")
@@ -380,8 +432,20 @@ function harvestCrop()
 
     infoSelected = null;
 
-    notifications.push(new HarvestNotif(playerName, foodName, 2));
-    triggerNotifications();
+    // notifications.push(new HarvestNotif(playerName, foodName, 2));
+    // triggerNotifications();
+}
+
+function pickTree()
+{
+    let tree = infoSelected;
+    socket.emit("pick_tree", roomId, tree.id);
+}
+
+function cutTree()
+{
+    let tree = infoSelected;
+    socket.emit("cut_tree", roomId, tree.id);
 }
 
 function giveItem(item, amount)
@@ -683,13 +747,24 @@ function drawTrees()
 {
     trees.forEach(obj => {
 
-        if(!treesUnlocked)
+        if(treesUnlocked)
         {
+            let image = img.treeRipe;
+
+            if(obj.cut)
+                image = img.treeStump;
+            else if(obj.daysLeft > 0)
+                image = img.treeBare;
+
+            ctx.drawImage(image, obj.interactBox.x * SCALE, (obj.interactBox.y - 8) * SCALE, 16 * SCALE, 32 * SCALE);
+        }
+        else
             ctx.drawImage(img.plant, obj.interactBox.x * SCALE, obj.interactBox.y * SCALE, 16 * SCALE, 16 * SCALE);
 
-            if(getActiveWindow() == "main" && mouseInteract(obj))
-                setLabel(obj);
-        }
+        
+
+        if(getActiveWindow() == "main" && mouseInteract(obj))
+            setLabel(obj);
     });
 }
 
@@ -825,13 +900,49 @@ function drawInfoPanel()
         }
         case "tree":
         {
-            ctx.font = '24px Kenney Mini Square';
+            let tree = infoSelected;
+
+            ctx.save();
+
+            ctx.font = '32px Kenney Mini Square';
             ctx.fillStyle = "black";
             ctx.textAlign = "center";
-            ctx.fillText("unidentified", 16*4*SCALE, 16*7*SCALE);
-            ctx.fillText("plant", 16*4*SCALE, 16*8*SCALE);
 
-            ctx.textAlign = "left";
+            if(treesUnlocked)
+            {
+                let image = img.treeRipe;
+                let text = "days until ripe: " + tree.daysLeft;
+                console.log(tree);
+
+                if(tree.cut)
+                {
+                    image = img.treeStump;
+                    text = "cut";
+                }
+                else if(tree.daysLeft > 0)
+                    image = img.treeBare;
+
+                ctx.drawImage(image, 16*3 * SCALE, 16*5 * SCALE, 16*2 * SCALE, 32*2 * SCALE);
+                ctx.fillText(tree.label, 16*4*SCALE, 16*10*SCALE);
+
+                ctx.font = '16px Kenney Mini Square';
+                ctx.fillText(text, 16*4*SCALE, 16*12*SCALE);
+
+                if(!tree.cut)
+                {
+                    if(tree.daysLeft == 0)
+                        drawButton(button.pickTree);
+                    drawButton(button.cutTree);
+                }
+            }
+            else
+            {
+                ctx.font = '24px Kenney Mini Square';
+                ctx.fillText("unidentified", 16*4*SCALE, 16*9*SCALE);
+                ctx.fillText("plant", 16*4*SCALE, 16*10*SCALE);
+            }
+
+            ctx.restore();
 
             break;
         }

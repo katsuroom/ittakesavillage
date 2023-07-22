@@ -5,6 +5,8 @@ class Tree extends Interactable {
     {
         super();
 
+        this.id = 0;
+
         this.daysLeft = 0;
         this.cut = false;
         

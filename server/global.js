@@ -4,7 +4,9 @@ const Material = require("./src/Material.js");
 
 const VILLAGER_COUNT = 12;
 const FARMLAND_COUNT = 32;
+
 const TREE_COUNT = 8;
+const TREE_GROWTH_TIME = 10;
 
 const FARMLAND_UNLOCKED = false;
 const FARMLAND_LOCKED = true;
@@ -34,8 +36,9 @@ ITEMS.carrotSeed = new Seed("carrot seed", "carrot_seed", ITEMS.carrot);
 module.exports = {
     VILLAGER_COUNT,
     FARMLAND_COUNT,
-    TREE_COUNT,
     FARMLAND_UNLOCKED,
     FARMLAND_LOCKED,
+    TREE_COUNT,
+    TREE_GROWTH_TIME,
     ITEMS
 };

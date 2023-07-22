@@ -2,8 +2,8 @@ const fs = require("fs");
 
 const Interactable = require("./Interactable.js");
 
-let facilities = ["water", "farming", "education", "housing"];
-let foods = ["cucumber", "tomato", "potato", "carrot"];
+const facilities = ["water", "farming", "education", "housing"];
+const foods = ["cucumber", "tomato", "potato", "carrot"];
 
 class Villager extends Interactable {
 

@@ -19,6 +19,8 @@ httpServer.listen(5000);
 const Game = require("./src/Game.js");
 const Player = require("./src/Player.js");
 
+const global = require("./global.js");
+
 const MAX_PLAYERS = 6;
 
 
@@ -149,7 +151,7 @@ function startGame(roomId)
     game.initPaths();
     game.initVillagers();
     game.initFacilities();
-    game.initItems();
+    game.initInventory();
     game.initFarmland();
     game.initTrees();
     game.started = true;
@@ -164,7 +166,7 @@ function startGame(roomId)
         io.sockets.to(player.id).emit("facilities", game.facilities);
         io.sockets.to(player.id).emit("inventory", game.inventory);
         io.sockets.to(player.id).emit("farm", game.farm);
-        io.sockets.to(player.id).emit("trees", game.trees, false);
+        io.sockets.to(player.id).emit("trees", game.trees, game.rolesPresent["scientist"]);
     });
 }
 
@@ -209,113 +211,6 @@ function disconnect(socket)
 
 
 // calculations ////////////////////////////////////////////////////////////////
-
-function addProgress(facility, amount)
-{
-    facility.progress += amount;
-    if(facility.progress > facility.progressMax)
-        facility.progress = facility.progressMax;
-}
-
-function updateFacilityProgress(game)
-{
-    game.villagers.forEach(villager => {
-        
-        let baseProgress, leastEffectiveMult, mostEffectiveMult = 0;
-
-        switch(game.facilities["education"].level)
-        {
-            case 1:
-                baseProgress = 2;
-                leastEffectiveMult = 0.75;
-                mostEffectiveMult = 1.5;
-                break;
-            case 2:
-                baseProgress = 3;
-                leastEffectiveMult = 0.8;
-                mostEffectiveMult = 1.6;
-                break;
-            case 3:
-                baseProgress = 4;
-                leastEffectiveMult = 0.85;
-                mostEffectiveMult = 1.7;
-                break;
-            case 4:
-                baseProgress = 5;
-                leastEffectiveMult = 0.9;
-                mostEffectiveMult = 1.85;
-                break;
-            case 5:
-                baseProgress = 8;
-                leastEffectiveMult = 1;
-                mostEffectiveMult = 2;
-                break;
-            default:
-                break;
-        }
-
-        if(!villager.currentTask) return;
-
-        if(villager.currentTask == villager.mostEffectiveTask)
-            addProgress(game.facilities[villager.currentTask], baseProgress * mostEffectiveMult);
-
-        else if(villager.currentTask == villager.leastEffectiveTask)
-            addProgress(game.facilities[villager.currentTask], baseProgress * leastEffectiveMult);
-
-        else
-            addProgress(game.facilities[villager.currentTask], baseProgress);
-
-    });
-}
-
-function updateCropGrowth(game)
-{
-    game.farm.forEach((farmland) => {
-        if(farmland.daysLeft > 0)
-        {
-            farmland.daysLeft--;
-            if(farmland.daysLeft == 0)
-                farmland.label = "ready";
-            else
-                farmland.label = farmland.daysLeft + " days";
-        }
-    });
-}
-
-function updateVillagers(game)
-{
-    game.villagers.forEach(villager => {
-        
-        // update happiness based on hunger, except for day 1
-        if(game.day > 1)
-        {
-            if(villager.hunger == 5)
-                villager.happiness += 5;
-            else if(villager.hunger == 2 || villager.hunger == 1)
-                villager.happiness -= 5;
-            else if(villager.hunger == 0)
-                villager.happiness -= 10;
-        }
-
-        // subtract hunger
-        if(villager.hunger > 0) villager.hunger--;
-
-        villager.fed = false;
-
-    });
-}
-
-function nextDay(game)
-{
-    updateCropGrowth(game);
-    updateVillagers(game);
-    updateFacilityProgress(game);
-
-    // increment day
-    game.day++;
-    game.daysUntilNextSeason--;
-}
-
 
 
 io.on("connection", (socket) => {
@@ -371,14 +266,39 @@ io.on("connection", (socket) => {
 
     socket.on("end_turn", (_roomId) => {
         let game = games[_roomId];
-        nextDay(game);
+        game.nextDay();
 
         game.players.forEach(player => {
             io.sockets.to(player.id).emit("day", game.day, game.daysUntilNextSeason);
             io.sockets.to(player.id).emit("villagers", game.villagers);
             io.sockets.to(player.id).emit("facilities", game.facilities);
             io.sockets.to(player.id).emit("farm", game.farm);
+            io.sockets.to(player.id).emit("trees", game.trees, game.rolesPresent["scientist"]);
         });
+    });
+
+    socket.on("pick_tree", (_roomId, _treeId) => {
+
+        let game = games[_roomId];
+        game.pickTree(_treeId);
+
+        game.players.forEach(player => {
+            io.sockets.to(player.id).emit("trees", game.trees, true);
+        });
+
+        socket.emit("give_item", global.ITEMS.apple, 1);
+    });
+
+    socket.on("cut_tree", (_roomId, _treeId) => {
+
+        let game = games[_roomId];
+        game.cutTree(_treeId);
+
+        game.players.forEach(player => {
+            io.sockets.to(player.id).emit("trees", game.trees, true);
+        });
+
+        socket.emit("give_item", global.ITEMS.wood, 5);
     });
 
     socket.on("disconnect", () => disconnect(socket));
