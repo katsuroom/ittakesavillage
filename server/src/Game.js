@@ -26,6 +26,9 @@ class Game {
 
 
         // game variables
+
+        this.currentTurn = 0;
+
         this.day = 1;
         this.season = "spring";
         this.daysUntilNextSeason = 20;
@@ -133,14 +136,14 @@ class Game {
         this.inventory.push(new ItemStack(global.ITEMS.tomatoSeed, 4));
         this.inventory.push(new ItemStack(global.ITEMS.potatoSeed, 4));
         this.inventory.push(new ItemStack(global.ITEMS.carrotSeed, 4));
-        // this.inventory.push(new ItemStack(global.ITEMS.cucumber, 4));
-        // this.inventory.push(new ItemStack(global.ITEMS.tomato, 4));
-        // this.inventory.push(new ItemStack(global.ITEMS.potato, 4));
-        // this.inventory.push(new ItemStack(global.ITEMS.carrot, 4));
-        // this.inventory.push(new ItemStack(global.ITEMS.apple, 4));
-        // this.inventory.push(new ItemStack(global.ITEMS.wood, 4));
-        // this.inventory.push(new ItemStack(global.ITEMS.brick, 4));
-        // this.inventory.push(new ItemStack(global.ITEMS.steel, 4));
+        // inventory.push(new ItemStack(global.ITEMS.cucumber, 4));
+        // inventory.push(new ItemStack(global.ITEMS.tomato, 4));
+        // inventory.push(new ItemStack(global.ITEMS.potato, 4));
+        // inventory.push(new ItemStack(global.ITEMS.carrot, 4));
+        // inventory.push(new ItemStack(global.ITEMS.apple, 4));
+        // inventory.push(new ItemStack(global.ITEMS.wood, 4));
+        // inventory.push(new ItemStack(global.ITEMS.brick, 4));
+        // inventory.push(new ItemStack(global.ITEMS.steel, 4));
     }
 
     initFarmland()
@@ -304,6 +307,7 @@ class Game {
         // increment day
         this.day++;
         this.daysUntilNextSeason--;
+        this.currentTurn = (this.currentTurn + 1) % this.players.length;
     }
 };
 

@@ -4,7 +4,6 @@ Object.entries(global).forEach(([name, exported]) => window[name] = exported);
 import * as sm from "../src/SceneManager.js";
 import { Button } from "../src/Button.js";
 
-let players = [];
 let ready = false;
 
 const buttons = {

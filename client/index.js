@@ -5,6 +5,7 @@ import * as sm from "./src/SceneManager.js";
 
 socket.on("connect", () => {
     console.log("connected: " + socket.id);
+    socketId = socket.id;
 });
 
 socket.on("server_info", (_games) => {

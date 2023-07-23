@@ -13,6 +13,8 @@ import { ItemStack } from "../src/ItemStack.js";
 
 const INVENTORY_SIZE = 32;
 
+let currentTurn = 0;
+
 let day = 0;
 let season = "";
 let daysUntilNextSeason = 0;
@@ -60,6 +62,14 @@ const button = {
 };
 
 // socket messages ////////////////////////////////////////////////////////////////
+
+socket.on("change_turn", (_currentTurn) => {
+    currentTurn = _currentTurn;
+
+    Object.values(button).forEach(button => {
+        button.enabled = isCurrentTurn();
+    });
+});
 
 socket.on("day", (_day, _daysUntilNextSeason) => {
     day = _day;
@@ -264,8 +274,11 @@ function onClick(e)
         trees.forEach(tree => {
             if(mouseInteract(tree))
             {
-                button.pickTree.enabled = tree.daysLeft == 0 && !tree.cut;
-                button.cutTree.enabled = !tree.cut;
+                if(isCurrentTurn())
+                {
+                    button.pickTree.enabled = tree.daysLeft == 0 && !tree.cut;
+                    button.cutTree.enabled = !tree.cut;
+                }
 
                 infoSelected = tree;
             }
@@ -293,6 +306,8 @@ function onClick(e)
 
     if(getActiveWindow() == "inventory")
     {
+        if(!isCurrentTurn()) return;
+
         for(let i = 0; i < inventory.length; i++)
         {
             const obj = {
@@ -355,6 +370,11 @@ export function exit()
     window.removeEventListener("keydown", onKeyDown);
 }
 
+function isCurrentTurn()    // bool
+{
+    return players[currentTurn].id == socketId;
+}
+
 function triggerNotifications()
 {
     if(notifications.length > 0)
@@ -400,8 +420,8 @@ function closeInventory()
     {
         windowStack.pop();
 
-        button.assignVillager.enabled = true;
-        button.healVillager.enabled = true;
+        button.assignVillager.enabled = isCurrentTurn();
+        button.healVillager.enabled = isCurrentTurn();
     }
 }
 

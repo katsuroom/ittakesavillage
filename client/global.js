@@ -18,9 +18,13 @@ canvas.addEventListener("mousemove", (e) => {
 
 
 // game variables ////////////////////////////////////////////////////////////////
+
+export let players = [];
+
 export let playerName = "";
 export let role = "";
 export let roomId = "";
+export let socketId = "";
 
 
 // functions ////////////////////////////////////////////////////////////////
