@@ -50,15 +50,15 @@ let currentNotif = null;            // currently displayed notification
 // buttons ////////////////////////////////////////////////////////////////
 
 const button = {
-    endTurn: new Button(35*16, 19*16, 6*16, 2*16, 326, "end turn"),
+    endTurn: new Button(35*16, 19*16, 6*16, 2*16, "pink", "end turn"),
 
-    assignVillager: new Button(1*16, 16*16, 6*16, 1.5*16, 25, "assign"),
-    healVillager: new Button(1*16, 17.75*16, 6*16, 1.5*16, 200, "heal"),
+    assignVillager: new Button(1*16, 16*16, 6*16, 1.5*16, "orange", "assign"),
+    healVillager: new Button(1*16, 17.75*16, 6*16, 1.5*16, "blue", "heal"),
     
-    harvestCrop: new Button(1*16, 16*16, 6*16, 1.5*16, 120, "harvest"),
+    harvestCrop: new Button(1*16, 16*16, 6*16, 1.5*16, "green", "harvest"),
     
-    pickTree: new Button(1*16, 16*16, 6*16, 1.5*16, 120, "pick apple"),
-    cutTree: new Button(1*16, 17.75*16, 6*16, 1.5*16, 0, "cut"),
+    pickTree: new Button(1*16, 16*16, 6*16, 1.5*16, "green", "pick apple"),
+    cutTree: new Button(1*16, 17.75*16, 6*16, 1.5*16, "red", "cut"),
 };
 
 // socket messages ////////////////////////////////////////////////////////////////
@@ -89,6 +89,13 @@ socket.on("villagers", (_villagers) => {
 
     if(infoSelected && infoSelected.infoType == "villager")
         infoSelected = villagers.find(obj => obj.name == infoSelected.name);
+});
+
+socket.on("facility", (_facility) => {
+    facilities[_facility.label] = _facility;
+
+    if(infoSelected && infoSelected.infoType == "facility")
+        infoSelected = facilities[infoSelected.label];
 });
 
 socket.on("facilities", (_facilities) => {
@@ -250,6 +257,11 @@ function onClick(e)
                     {
                         finishAssign(facility);
                         infoSelected = prevSelected;
+                    }
+                    else if(heldItemStack && heldItemStack.item.type == "material")
+                    {
+                        useMaterial(facility);
+                        infoSelected = facility;
                     }
                     else
                         infoSelected = facility;
@@ -492,6 +504,12 @@ function startAssign()
 
 function finishAssign(facility)
 {
+    if(facility == facilities["power"] && facilities["power"].assignedVillagers.length > 0)
+    {
+        button.assignVillager.enabled = true;
+        return;
+    }
+
     // remove villager from current assigned facility
     let oldFacility = null;
 
@@ -541,6 +559,14 @@ function feedVillager(villager)
     socket.emit("villager", roomId, villager);
 
     useItem();
+}
+
+function useMaterial(facility)
+{
+    facility.progress += heldItemStack.item.progress;
+    useItem();
+
+    socket.emit("facility", roomId, facility);
 }
 
 function useItem()
@@ -740,6 +766,8 @@ function drawFacilities()
     ctx.drawImage(img.facilityEducation, 176 * SCALE, 240 * SCALE, img.facilityEducation.width * SCALE, img.facilityEducation.height * SCALE);
     ctx.drawImage(img.facilityHousing, 368 * SCALE, 240 * SCALE, img.facilityHousing.width * SCALE, img.facilityHousing.height * SCALE);
 
+    ctx.drawImage(img.powerOff, 16*16*SCALE, 16*1*SCALE, img.powerOff.width * SCALE, img.powerOn.height * SCALE);
+
     Object.values(facilities).forEach(facility => {
         if(getActiveWindow() == "main" && mouseInteract(facility))
             setLabel(facility);
@@ -757,6 +785,9 @@ function drawFarmland()
             let cropImg = obj.daysLeft == 0 ? img[obj.crop.food.id] : img.plant;
             ctx.drawImage(cropImg, obj.interactBox.x * SCALE, obj.interactBox.y * SCALE, 16 * SCALE, 16 * SCALE);
         }
+
+        if(heldItemStack && heldItemStack.item.type == "material")
+            return;
 
         if(getActiveWindow() == "main" && !selectedVillager && !obj.locked && mouseInteract(obj))
             setLabel(obj);
@@ -932,7 +963,6 @@ function drawInfoPanel()
             {
                 let image = img.treeRipe;
                 let text = "days until ripe: " + tree.daysLeft;
-                console.log(tree);
 
                 if(tree.cut)
                 {

@@ -24,6 +24,8 @@ export const img = {
     facilityWater:      loadImage("assets/art/facility_water.png"),
     facilityEducation:  loadImage("assets/art/facility_education.png"),
     facilityHousing:    loadImage("assets/art/facility_housing.png"),
+    powerOff:           loadImage("assets/art/power_off.png"),
+    powerOn:            loadImage("assets/art/power_on.png"),
     farmland:           loadImage("assets/art/farmland.png"),
     farmlandLocked:     loadImage("assets/art/farmland_locked.png"),
     plant:              loadImage("assets/art/plant.png"),

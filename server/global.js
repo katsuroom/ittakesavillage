@@ -1,6 +1,7 @@
 const Seed = require("./src/Seed.js");
 const Food = require("./src/Food.js");
 const Material = require("./src/Material.js");
+const Event = require("./src/Event.js");
 
 const VILLAGER_COUNT = 12;
 const FARMLAND_COUNT = 32;

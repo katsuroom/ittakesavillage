@@ -7,8 +7,8 @@ import { TextField } from "../src/TextField.js";
 
 
 const buttons = {
-    hostGame: new Button(7*16, 4*16, 6*16, 2*16, 326, "host game"),
-    joinGame: new Button(7*16, 11*16, 6*16, 2*16, 326, "join game")
+    hostGame: new Button(7*16, 4*16, 6*16, 2*16, "pink", "host game"),
+    joinGame: new Button(7*16, 11*16, 6*16, 2*16, "pink", "join game")
 };
 
 const textFields = {

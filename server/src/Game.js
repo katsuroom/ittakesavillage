@@ -41,10 +41,11 @@ class Game {
         this.trees = [];
 
         this.facilities = {
-            "water": new Facility(),
-            "farming": new Facility(),
-            "education": new Facility(),
-            "housing": new Facility()
+            "water": new Facility(50),
+            "farming": new Facility(50),
+            "education": new Facility(50),
+            "housing": new Facility(50),
+            "power": new Facility(20)
         };
 
         this.inventory = [];
@@ -128,6 +129,10 @@ class Game {
         this.facilities["housing"].label = "housing";
         this.facilities["housing"].labelColor = "#FF6666";
         this.facilities["housing"].interactBox = {x: 368 - padding, y: 240 - padding, width: 128 + 2 * padding, height: 64 + 2 * padding};
+
+        this.facilities["power"].label = "power";
+        this.facilities["power"].labelColor = "#FFFF00";
+        this.facilities["power"].interactBox = {x: 16*16, y: 16*2, width: 64, height: 16*3};
     }
 
     initInventory()
@@ -136,14 +141,14 @@ class Game {
         this.inventory.push(new ItemStack(global.ITEMS.tomatoSeed, 4));
         this.inventory.push(new ItemStack(global.ITEMS.potatoSeed, 4));
         this.inventory.push(new ItemStack(global.ITEMS.carrotSeed, 4));
-        // inventory.push(new ItemStack(global.ITEMS.cucumber, 4));
-        // inventory.push(new ItemStack(global.ITEMS.tomato, 4));
-        // inventory.push(new ItemStack(global.ITEMS.potato, 4));
-        // inventory.push(new ItemStack(global.ITEMS.carrot, 4));
-        // inventory.push(new ItemStack(global.ITEMS.apple, 4));
-        // inventory.push(new ItemStack(global.ITEMS.wood, 4));
-        // inventory.push(new ItemStack(global.ITEMS.brick, 4));
-        // inventory.push(new ItemStack(global.ITEMS.steel, 4));
+        // this.inventory.push(new ItemStack(global.ITEMS.cucumber, 4));
+        // this.inventory.push(new ItemStack(global.ITEMS.tomato, 4));
+        // this.inventory.push(new ItemStack(global.ITEMS.potato, 4));
+        // this.inventory.push(new ItemStack(global.ITEMS.carrot, 4));
+        // this.inventory.push(new ItemStack(global.ITEMS.apple, 4));
+        // this.inventory.push(new ItemStack(global.ITEMS.wood, 4));
+        this.inventory.push(new ItemStack(global.ITEMS.brick, 4));
+        this.inventory.push(new ItemStack(global.ITEMS.steel, 4));
     }
 
     initFarmland()
@@ -209,6 +214,10 @@ class Game {
     {
         this.villagers.forEach(villager => {
             
+            if(!villager.currentTask) return;
+
+            if(villager.currentTask == "power") return;
+
             let baseProgress, leastEffectiveMult, mostEffectiveMult = 0;
 
             switch(this.facilities["education"].level)
@@ -241,8 +250,6 @@ class Game {
                 default:
                     break;
             }
-
-            if(!villager.currentTask) return;
 
             if(villager.currentTask == villager.mostEffectiveTask)
                 this.addProgress(this.facilities[villager.currentTask], baseProgress * mostEffectiveMult);

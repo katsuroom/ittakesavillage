@@ -266,6 +266,15 @@ io.on("connection", (socket) => {
         }
     });
 
+    socket.on("facility", (_roomId, _facility) => {
+        let game = games[_roomId];
+        game.facilities[_facility.label] = _facility;
+
+        game.players.forEach(player => {
+            io.sockets.to(player.id).emit("facility", _facility);
+        });
+    });
+
     socket.on("end_turn", (_roomId) => {
         let game = games[_roomId];
         game.nextDay();

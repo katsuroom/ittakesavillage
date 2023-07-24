@@ -47,48 +47,21 @@ export function mouseInteract(obj)
 
 export function drawButton(button)
 {
-    // let tilesX = Math.floor(button.interactBox.width / 16);
-    // let tilesY = Math.floor(button.interactBox.height / 16);
-    
-    // for(let i = 0; i < tilesY; i++)
-    // {
-    //     for(let j = 0; j < tilesX; j++)
-    //     {
-    //         let imgX = 0;
-    //         let imgY = 0;
-
-    //         if(j == 0) imgX = 0;
-    //         else if(j < tilesX - 1) imgX = 16;
-    //         else if(j == tilesX - 1) imgX = 2 * 16;
-
-    //         if(i == 0) imgY = 0;
-    //         else if(i < tilesY - 1) imgY = 16;
-    //         else if(i == tilesY - 1) imgY = 2 * 16;
-
-    //         ctx.drawImage(img.buttonLarge,
-    //             imgX, imgY,
-    //             16, 16,
-    //             (button.interactBox.x + j * 16) * SCALE,
-    //             (button.interactBox.y + i * 16) * SCALE,
-    //             16 * SCALE, 16 * SCALE);
-    //     }
-    // }
-
-    ctx.fillStyle = "hsl(" + button.hue + ", 100%, 70%)";
+    ctx.fillStyle = button.colorA;
     ctx.fillRect(
         button.interactBox.x * SCALE,
         button.interactBox.y * SCALE,
         button.interactBox.width * SCALE,
         button.interactBox.height * SCALE);
 
-    ctx.fillStyle = "hsl(" + button.hue + ", 100%, 75%)";
+    ctx.fillStyle = button.colorB;
     ctx.fillRect(
         (button.interactBox.x + 1) * SCALE,
         (button.interactBox.y + 1) * SCALE,
         (button.interactBox.width - 2) * SCALE,
         (button.interactBox.height - 2) * SCALE);
 
-    ctx.fillStyle = "hsl(" + button.hue + ", 100%, 70%)";
+    ctx.fillStyle = button.colorA;
     ctx.fillRect(
         (button.interactBox.x + 3) * SCALE,
         (button.interactBox.y + 3) * SCALE,

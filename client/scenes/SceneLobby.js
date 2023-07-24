@@ -7,13 +7,13 @@ import { Button } from "../src/Button.js";
 let ready = false;
 
 const buttons = {
-    chief: new Button(13*16, 2*16, 6*16, 1.5*16, 200, "chief"),
-    doctor: new Button(13*16, 4*16, 6*16, 1.5*16, 200, "doctor"),
-    scientist: new Button(13*16, 6*16, 6*16, 1.5*16, 200, "scientist"),
-    sociologist: new Button(13*16, 8*16, 6*16, 1.5*16, 200, "sociologist"),
-    farmer: new Button(13*16, 10*16, 6*16, 1.5*16, 200, "farmer"),
-    engineer: new Button(13*16, 12*16, 6*16, 1.5*16, 200, "engineer"),
-    ready: new Button(1*16, 12*16, 6*16, 1.5*16, 0, "ready"),
+    chief: new Button(13*16, 2*16, 6*16, 1.5*16, "blue", "chief"),
+    doctor: new Button(13*16, 4*16, 6*16, 1.5*16, "blue", "doctor"),
+    scientist: new Button(13*16, 6*16, 6*16, 1.5*16, "blue", "scientist"),
+    sociologist: new Button(13*16, 8*16, 6*16, 1.5*16, "blue", "sociologist"),
+    farmer: new Button(13*16, 10*16, 6*16, 1.5*16, "blue", "farmer"),
+    engineer: new Button(13*16, 12*16, 6*16, 1.5*16, "blue", "engineer"),
+    ready: new Button(1*16, 12*16, 6*16, 1.5*16, "red", "ready"),
 };
 
 socket.on("refresh_lobby", (_players, _roomId) => {
