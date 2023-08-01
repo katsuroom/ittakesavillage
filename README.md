@@ -7,3 +7,5 @@
 `npm install`
 
 `npm start`
+
+Open browser to `localhost:5000`
