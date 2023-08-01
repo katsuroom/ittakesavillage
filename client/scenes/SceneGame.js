@@ -17,10 +17,18 @@ let currentTurn = 0;
 
 let day = 0;
 let season = "";
+let nextSeason = "";
 let daysUntilNextSeason = 0;
+
+let event = null;
+let nextEvent = null;
+
 let budget = 0;
 
 let villagers = [];             // array of all villagers
+let paths = [];
+let movingVillager = null;      // villager being moved
+
 let facilities = {};            // dictionary of each of the 4 facilities
 let farm = [];                  // array of available farmland
 
@@ -76,12 +84,34 @@ socket.on("day", (_day, _daysUntilNextSeason) => {
     daysUntilNextSeason = _daysUntilNextSeason;
 });
 
-socket.on("season", (_season) => {
+socket.on("season", (_season, _nextSeason) => {
     season = _season;
+    nextSeason = _nextSeason;
+});
+
+socket.on("event", (_event, _nextEvent) => {
+    event = _event;
+    nextEvent = _nextEvent;
+    console.log(event);
+    console.log(nextEvent);
 });
 
 socket.on("budget", (_budget) => {
     budget = _budget;
+});
+
+socket.on("villager", (_villager) => {
+    for(let i = 0; i < villagers.length; i++)
+    {
+        if(villagers[i].name == _villager.name)
+        {
+            villagers[i] = _villager;
+            break;
+        }
+    }
+
+    if(infoSelected && infoSelected.infoType == "villager")
+        infoSelected = villagers.find(obj => obj.name == infoSelected.name);
 });
 
 socket.on("villagers", (_villagers) => {
@@ -89,6 +119,10 @@ socket.on("villagers", (_villagers) => {
 
     if(infoSelected && infoSelected.infoType == "villager")
         infoSelected = villagers.find(obj => obj.name == infoSelected.name);
+});
+
+socket.on("paths", (_paths) => {
+    paths = _paths;
 });
 
 socket.on("facility", (_facility) => {
@@ -148,7 +182,7 @@ socket.on("trees", (_trees, _treesUnlocked) => {
 
 socket.on("give_item", (_item, _amount) => {
     giveItem(_item, _amount);
-})
+});
 
 
 // event handlers ////////////////////////////////////////////////////////////////
@@ -360,6 +394,35 @@ function onKeyDown(e)
     }
 }
 
+function onMouseDown(e)
+{
+    if(e.button == 2) // right click
+    {
+        if(getActiveWindow() == "main")
+        {
+            for(let i = 0; i < villagers.length; i++)
+            {
+                if(mouseInteract(villagers[i]))
+                {
+                    movingVillager = villagers[i];
+                    break;
+                }
+            }
+        }
+    }
+}
+
+function onMouseUp(e)
+{
+    if(e.button == 2)
+    {
+        // move villager
+        if(movingVillager)
+            moveVillager();
+
+        movingVillager = null;
+    }
+}
 
 // main ////////////////////////////////////////////////////////////////
 
@@ -373,12 +436,16 @@ export function init()
     ctx.textBaseline = "top";
 
     canvas.addEventListener("click", onClick);
+    canvas.addEventListener("mousedown", onMouseDown);
+    canvas.addEventListener("mouseup", onMouseUp);
     window.addEventListener("keydown", onKeyDown);
 }
 
 export function exit()
 {
     canvas.removeEventListener("click", onClick);
+    canvas.removeEventListener("mousedown", onMouseDown);
+    canvas.removeEventListener("mouseup", onMouseUp);
     window.removeEventListener("keydown", onKeyDown);
 }
 
@@ -561,6 +628,26 @@ function feedVillager(villager)
     useItem();
 }
 
+function moveVillager()
+{
+    let pathX = Math.floor(mouse.x / (16*SCALE)) - 8;
+    let pathY = Math.floor(mouse.y / (16*SCALE));
+
+    if(pathY >= 0 && pathY <= 21 && pathX >= 0 && pathX <= 25 && paths[pathY][pathX] != 'x')
+    {
+        paths[movingVillager.position.y][movingVillager.position.x] = '-';
+
+        movingVillager.position.x = pathX;
+        movingVillager.position.y = pathY;
+        movingVillager.interactBox.x = pathX * 16 + 128;
+        movingVillager.interactBox.y = pathY * 16;
+
+        paths[pathY][pathX] = 'x';
+
+        socket.emit("move_villager", roomId, movingVillager, paths);
+    }
+}
+
 function useMaterial(facility)
 {
     facility.progress += heldItemStack.item.progress;
@@ -684,6 +771,17 @@ function drawVillager(villager, x, y, scale)
             hairData.data[i+1] = villager.hairColor.g;
             hairData.data[i+2] = villager.hairColor.b;
         }
+
+        // turn skin green if sick
+        if(villager.sick)
+        {
+            if(hairData.data[i] == 255 && hairData.data[i+1] == 215 && hairData.data[i+2] == 190)
+            {
+                hairData.data[i] = 180;
+                hairData.data[i+1] = 240;
+                hairData.data[i+2] = 170;
+            }
+        }
     }
 
     ctx.putImageData(hairData,
@@ -758,6 +856,48 @@ function drawVillagers()
         if(getActiveWindow() == "main" && !isHoldingFood() && mouseInteract(villager))
             setLabel(villager);
     });
+}
+
+function drawPaths()
+{
+    if(!movingVillager) return;
+
+    ctx.save();
+
+    ctx.globalAlpha = 0.3;
+
+    for(let i = 0; i < paths.length; i++)
+    {
+        for(let j = 0; j < paths[i].length; j++)
+        {
+            if(paths[i][j] == 'x')
+                ctx.fillStyle = "red";
+            else
+                ctx.fillStyle = "white";
+
+            ctx.fillRect(
+                16 * (j + 8) * SCALE,
+                16 * (i + 0) * SCALE,
+                16 * SCALE, 16 * SCALE);
+        }
+    }
+
+    ctx.globalAlpha = 0.5;
+
+    
+    let pathX = Math.floor(mouse.x / (16*SCALE));
+    let pathY = Math.floor(mouse.y / (16*SCALE));
+
+    if(pathY >= 0 && pathY <= 21 && pathX - 8 >= 0 && pathX - 8 <= 25)
+    {
+        ctx.fillStyle = "blue";
+        ctx.fillRect(
+            pathX * (16*SCALE),
+            pathY * (16*SCALE),
+            16*SCALE, 16*SCALE);
+    }
+
+    ctx.restore();
 }
 
 function drawFacilities()
@@ -1014,10 +1154,18 @@ function drawActionPanel()
     ctx.fillText(season, 16*35*SCALE, 16*3*SCALE);
 
     ctx.font = "15px Kenney Mini Square";
-    ctx.fillText(daysUntilNextSeason + " days until fall", 16*35*SCALE, 16*4*SCALE);
+    ctx.fillText(daysUntilNextSeason + " days until " + nextSeason, 16*35*SCALE, 16*4*SCALE);
 
     ctx.fillText("current event: ", 16*35*SCALE, 16*6*SCALE);
-    ctx.fillText("next event: ", 16*35*SCALE, 16*8*SCALE);
+    if(event)
+    {
+        ctx.drawImage(img["event_" + event.id], 16*35*SCALE, 16*7*SCALE, 16*6*SCALE, 16*2.5*SCALE);
+        ctx.strokeRect(16*35*SCALE, 16*7*SCALE, 16*6*SCALE, 16*2.5*SCALE);
+    }
+    // ctx.fillText(event ? event.name : "", 16*35*SCALE, 16*7*SCALE);
+
+    ctx.fillText("next event: ", 16*35*SCALE, 16*11*SCALE);
+    ctx.fillText(nextEvent ? nextEvent.name : "", 16*35*SCALE, 16*12*SCALE);
 
     drawButton(button.endTurn);
 }
@@ -1150,6 +1298,7 @@ export function draw()
 {
     labelSelected = null;
 
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(img.background, 0, 0, img.background.width * SCALE, img.background.height * SCALE);
     
     drawFacilities();
@@ -1157,6 +1306,9 @@ export function draw()
     drawVillagers();
     
     drawTrees();
+
+    drawPaths();
+
     drawActionPanel();
     drawInfoPanel();
     drawInventory();

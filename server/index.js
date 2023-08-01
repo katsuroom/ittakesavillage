@@ -154,22 +154,31 @@ function startGame(roomId)
     game.initInventory();
     game.initFarmland();
     game.initTrees();
+
+    game.event = global.EVENTS["cloudy_day"];
+    game.event.duration = 3;
+
+    game.nextEvent = game.getNextEvent();
+    game.nextEvent.duration = Math.floor(Math.random() * (global.EVENT_DURATION_MAX - global.EVENT_DURATION_MIN + 1))
+        + global.EVENT_DURATION_MIN;
+
     game.started = true;
 
-    for(let i = 0; i < game.players.length; i++)
-    {
-        io.sockets.to(game.players[i].id).emit("start_game");
-        io.sockets.to(game.players[i].id).emit("day", game.day, game.daysUntilNextSeason);
-        io.sockets.to(game.players[i].id).emit("season", game.season);
-        io.sockets.to(game.players[i].id).emit("budget", game.budget);
-        io.sockets.to(game.players[i].id).emit("villagers", game.villagers);
-        io.sockets.to(game.players[i].id).emit("facilities", game.facilities);
-        io.sockets.to(game.players[i].id).emit("inventory", game.inventory);
-        io.sockets.to(game.players[i].id).emit("farm", game.farm);
-        io.sockets.to(game.players[i].id).emit("trees", game.trees, game.rolesPresent["scientist"]);
+    game.players.forEach(player => {
+        io.sockets.to(player.id).emit("start_game");
+        io.sockets.to(player.id).emit("day", game.day, game.daysUntilNextSeason);
+        io.sockets.to(player.id).emit("season", game.season, game.nextSeason);
+        io.sockets.to(player.id).emit("budget", game.budget);
+        io.sockets.to(player.id).emit("villagers", game.villagers);
+        io.sockets.to(player.id).emit("paths", game.paths);
+        io.sockets.to(player.id).emit("facilities", game.facilities);
+        io.sockets.to(player.id).emit("inventory", game.inventory);
+        io.sockets.to(player.id).emit("farm", game.farm);
+        io.sockets.to(player.id).emit("trees", game.trees, game.rolesPresent["scientist"]);
 
-        io.sockets.to(game.players[i].id).emit("change_turn", game.currentTurn);
-    }
+        io.sockets.to(player.id).emit("event", game.event, game.nextEvent);
+        io.sockets.to(player.id).emit("change_turn", game.currentTurn);
+    });
 }
 
 function disconnect(socket)
@@ -254,13 +263,40 @@ io.on("connection", (socket) => {
 
     });
 
-    socket.on("villager", (_roomId, _villager) => {
+    socket.on("move_villager", (_roomId, _villager, _paths) => {
         let game = games[_roomId];
+
         for(let i = 0; i < game.villagers.length; i++)
         {
             if(game.villagers[i].name == _villager.name)
             {
                 game.villagers[i] = _villager;
+                break;
+            }
+        }
+
+        game.sortVillagers();
+        game.paths = _paths;
+
+        game.players.forEach(player => {
+            io.sockets.to(player.id).emit("paths", game.paths);
+            io.sockets.to(player.id).emit("villagers", game.villagers);
+        });
+    });
+
+    socket.on("villager", (_roomId, _villager) => {
+        let game = games[_roomId];
+
+        for(let i = 0; i < game.villagers.length; i++)
+        {
+            if(game.villagers[i].name == _villager.name)
+            {
+                game.villagers[i] = _villager;
+
+                game.players.forEach(player => {
+                    io.sockets.to(player.id).emit("villager", game.villagers[i]);
+                });
+
                 break;
             }
         }
@@ -279,16 +315,43 @@ io.on("connection", (socket) => {
         let game = games[_roomId];
         game.nextDay();
 
-        for(let i = 0; i < game.players.length; i++)
+        let changeSeason = false;
+        if(game.daysUntilNextSeason == 0)
         {
-            io.sockets.to(game.players[i].id).emit("day", game.day, game.daysUntilNextSeason);
-            io.sockets.to(game.players[i].id).emit("villagers", game.villagers);
-            io.sockets.to(game.players[i].id).emit("facilities", game.facilities);
-            io.sockets.to(game.players[i].id).emit("farm", game.farm);
-            io.sockets.to(game.players[i].id).emit("trees", game.trees, game.rolesPresent["scientist"]);
+            changeSeason = true;
 
-            io.sockets.to(game.players[i].id).emit("change_turn", game.currentTurn);
+            for(let i = 0; i < global.SEASONS.length; i++)
+            {
+                if(global.SEASONS[i].name == game.season)
+                {
+                    if(i < global.SEASONS.length - 1)
+                    {
+                        game.season = global.SEASONS[i+1].name;
+                        game.daysUntilNextSeason = global.SEASONS[i+1].days;
+                    }
+                    if(i < global.SEASONS.length - 2)
+                        game.nextSeason = global.SEASONS[i+2].name;
+                    
+                    break;
+                }
+            }
         }
+
+        game.players.forEach(player => {
+            io.sockets.to(player.id).emit("day", game.day, game.daysUntilNextSeason);
+
+            if(changeSeason)
+                io.sockets.to(player.id).emit("season", game.season, game.nextSeason);
+
+            io.sockets.to(player.id).emit("villagers", game.villagers);
+            io.sockets.to(player.id).emit("facilities", game.facilities);
+            io.sockets.to(player.id).emit("farm", game.farm);
+            io.sockets.to(player.id).emit("trees", game.trees, game.rolesPresent["scientist"]);
+
+            io.sockets.to(player.id).emit("event", game.event, game.nextEvent);
+
+            io.sockets.to(player.id).emit("change_turn", game.currentTurn);
+        });
     });
 
     socket.on("pick_tree", (_roomId, _treeId) => {

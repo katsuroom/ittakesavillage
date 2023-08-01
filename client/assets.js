@@ -32,7 +32,8 @@ export const img = {
     treeBare:           loadImage("assets/art/tree_bare.png"),
     treeRipe:           loadImage("assets/art/tree_ripe.png"),
     treeStump:          loadImage("assets/art/tree_stump.png"),
-    buttonLarge:        loadImage("assets/art/button_large.png"),
+
+    // items
     "cucumber":         loadImage("assets/art/cucumber.png"),
     "cucumber_seed":    loadImage("assets/art/cucumber_seed.png"),
     "tomato":           loadImage("assets/art/tomato.png"),
@@ -44,7 +45,20 @@ export const img = {
     "apple":            loadImage("assets/art/apple.png"),
     "wood":             loadImage("assets/art/wood.png"),
     "brick":            loadImage("assets/art/brick.png"),
-    "steel":            loadImage("assets/art/steel.png")
+    "steel":            loadImage("assets/art/steel.png"),
+
+    // events
+    "event_black_friday":   loadImage("assets/art/event_black_friday.png"),
+    "event_cloudy_day":     loadImage("assets/art/event_cloudy_day.png"),
+    "event_death":          loadImage("assets/art/event_death.png"),
+    "event_disease":        loadImage("assets/art/event_disease.png"),
+    "event_drought":        loadImage("assets/art/event_drought.png"),
+    "event_flood":          loadImage("assets/art/event_flood.png"),
+    "event_free_cake":      loadImage("assets/art/event_free_cake.png"),
+    "event_harvest":        loadImage("assets/art/event_harvest.png"),
+    "event_heat_stroke":    loadImage("assets/art/event_heat_stroke.png"),
+    "event_rainy_day":      loadImage("assets/art/event_rainy_day.png"),
+    "event_summer_day":     loadImage("assets/art/event_summer_day.png")
 };
 
 

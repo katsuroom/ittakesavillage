@@ -31,7 +31,12 @@ class Game {
 
         this.day = 1;
         this.season = "spring";
+        this.nextSeason = "summer";
         this.daysUntilNextSeason = 20;
+
+        this.event = null;
+        this.nextEvent = null;
+
         this.budget = 1600;
 
         this.villagers = [];
@@ -104,10 +109,11 @@ class Game {
             this.villagers.push(villager);
         }
 
-        // sort by y position
-        this.villagers.sort(function(a, b) {
-            return a.position.y - b.position.y;
-        });
+        this.sortVillagers();
+
+        // restore part of path
+        for(let i = 1; i < 25; i++)
+            this.paths[5][i] = '-';
     }
 
     initFacilities()
@@ -184,6 +190,14 @@ class Game {
                 tree.label = "?";
             this.trees.push(tree);
         }
+    }
+
+    sortVillagers()
+    {
+        // sort by y position
+        this.villagers.sort(function(a, b) {
+            return a.position.y - b.position.y;
+        });
     }
 
     // actions
@@ -302,7 +316,72 @@ class Game {
 
             villager.fed = false;
 
+            // chance of sickness
+            if(Math.random() < global.SICK_CHANCE)
+            {
+                villager.sick = true;
+                villager.labelColor = "rgb(0,191,0)";
+            }
+
         });
+    }
+
+    updateEvent()
+    {
+        this.event.duration--;
+
+        if(this.event.duration == 0)
+        {
+            // switch to next event
+            this.event = this.nextEvent;
+
+            // set next event
+            this.nextEvent = this.getNextEvent();
+        }
+    }
+
+    getNextEvent()
+    {
+        // calculate season for next event
+        let dayCount = this.day + this.event.duration;
+
+        if(dayCount > 60) return null;
+
+        let season = "";
+
+        for(let i = 0; i < global.SEASONS.length; i++)
+        {
+            dayCount -= global.SEASONS[i].days;
+            if(dayCount <= 0)
+            {
+                season = global.SEASONS[i].name;
+                break;
+            }
+        }
+
+        // get event from event table
+        let event = null;
+
+        switch(season)
+        {
+            case "spring":
+                event = global.EVENTS_SPRING.getItem();
+                break;
+            case "summer":
+                event = global.EVENTS_SUMMER.getItem();
+                break;
+            case "autumn":
+                event = global.EVENTS_AUTUMN.getItem();
+                break;
+            case "winter":
+                event = global.EVENTS_WINTER.getItem();
+                break;
+            default:
+                break;
+        }
+
+        event.duration = 3;
+        return event;
     }
 
     nextDay()
@@ -314,6 +393,10 @@ class Game {
         // increment day
         this.day++;
         this.daysUntilNextSeason--;
+
+        this.updateEvent();
+
+        // change player turn
         this.currentTurn = (this.currentTurn + 1) % this.players.length;
     }
 };
