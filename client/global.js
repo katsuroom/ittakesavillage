@@ -20,6 +20,7 @@ canvas.addEventListener("mousemove", (e) => {
 // game variables ////////////////////////////////////////////////////////////////
 
 export let players = [];
+export let rolesPresent = {};
 
 export let playerName = "";
 export let role = "";

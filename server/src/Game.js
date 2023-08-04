@@ -2,6 +2,7 @@ const Villager = require("./Villager.js");
 const Facility = require("./Facility.js");
 const ItemStack = require("./ItemStack.js");
 const Farmland = require("./Farmland.js");
+const Factory = require("./Factory.js");
 const Tree = require("./Tree.js");
 
 const global = require("../global.js");
@@ -44,6 +45,8 @@ class Game {
 
         this.farm = [];
         this.trees = [];
+
+        this.factory = new Factory();
 
         this.facilities = {
             "water": new Facility(50),
@@ -141,6 +144,14 @@ class Game {
         this.facilities["power"].interactBox = {x: 16*16, y: 16*2, width: 64, height: 16*3};
     }
 
+    initFactory()
+    {
+        this.factory.interactBox.x = 16*13;
+        this.factory.interactBox.y = 16*15.5;
+        this.factory.interactBox.width = 16*4;
+        this.factory.interactBox.height = 16*3;
+    }
+
     initInventory()
     {
         this.inventory.push(new ItemStack(global.ITEMS.cucumberSeed, 4));
@@ -152,7 +163,7 @@ class Game {
         // this.inventory.push(new ItemStack(global.ITEMS.potato, 4));
         // this.inventory.push(new ItemStack(global.ITEMS.carrot, 4));
         // this.inventory.push(new ItemStack(global.ITEMS.apple, 4));
-        // this.inventory.push(new ItemStack(global.ITEMS.wood, 4));
+        this.inventory.push(new ItemStack(global.ITEMS.wood, 4));
         this.inventory.push(new ItemStack(global.ITEMS.brick, 4));
         this.inventory.push(new ItemStack(global.ITEMS.steel, 4));
     }
@@ -277,6 +288,14 @@ class Game {
         });
     }
 
+    updateFactory()
+    {
+        this.factory.brickProgress += this.facilities["education"].assignedVillagers.length;
+        
+        this.factory.bricks += Math.floor(this.factory.brickProgress / 10);
+        this.factory.brickProgress = this.factory.brickProgress % 10;
+    }
+
     updateCropGrowth()
     {
         this.farm.forEach((farmland) => {
@@ -386,6 +405,7 @@ class Game {
 
     nextDay()
     {
+        this.updateFactory();
         this.updateCropGrowth();
         this.updateVillagers();
         this.updateFacilityProgress();

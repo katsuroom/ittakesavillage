@@ -14,7 +14,7 @@ const TREE_GROWTH_TIME = 10;
 const FARMLAND_UNLOCKED = false;
 const FARMLAND_LOCKED = true;
 
-const SICK_CHANCE = 0.03;
+const SICK_CHANCE = 0.5;
 
 const ITEMS = {
     cucumber: new Food("cucumber", "cucumber"),
@@ -28,9 +28,9 @@ const ITEMS = {
     potatoSeed: undefined,
     carrotSeed: undefined,
 
-    wood: new Material("wood", "wood", 3),
-    brick: new Material("brick", "brick", 2),
-    steel: new Material("steel", "steel", 5),
+    wood: new Material("wood", "wood", 3, 6),
+    brick: new Material("brick", "brick", 2, 6),
+    steel: new Material("steel", "steel", 5, 10),
 };
 
 ITEMS.cucumberSeed = new Seed("cucumber seed", "cucumber_seed", ITEMS.cucumber);

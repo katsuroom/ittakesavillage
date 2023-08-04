@@ -35,10 +35,8 @@ export function loadScene(scene)
                 break;
             
             case SCENE.game:
-                // setTimeout(() => {
-                    SceneGame.init();
-                    requestAnimationFrame(SceneGame.draw);
-                // }, 100);
+                SceneGame.init();
+                requestAnimationFrame(SceneGame.draw);
                 break;
         }
 

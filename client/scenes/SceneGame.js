@@ -12,6 +12,8 @@ import { ItemStack } from "../src/ItemStack.js";
 // game variables ////////////////////////////////////////////////////////////////
 
 const INVENTORY_SIZE = 32;
+const UPGRADE_MATERIAL_COST = 10;
+const HEAL_VILLAGER_COST = 100;
 
 let currentTurn = 0;
 
@@ -30,12 +32,19 @@ let paths = [];
 let movingVillager = null;      // villager being moved
 
 let facilities = {};            // dictionary of each of the 4 facilities
+let factory = null;
 let farm = [];                  // array of available farmland
 
 let treesUnlocked = false;      // whether or not trees are unlocked
 let trees = [];                 // array of apple trees
 
 let inventory = [];             // array of ItemStack objects in inventory
+
+
+// role specific
+
+let healChances = 0;            // for doctor only
+let isUpgrading = false;        // for engineer only
 
 
 // ui ////////////////////////////////////////////////////////////////
@@ -63,10 +72,13 @@ const button = {
     assignVillager: new Button(1*16, 16*16, 6*16, 1.5*16, "orange", "assign"),
     healVillager: new Button(1*16, 17.75*16, 6*16, 1.5*16, "blue", "heal"),
     
+    collectBricks: new Button(1*16, 16*16, 6*16, 1.5*16, "red", "collect"),
     harvestCrop: new Button(1*16, 16*16, 6*16, 1.5*16, "green", "harvest"),
     
     pickTree: new Button(1*16, 16*16, 6*16, 1.5*16, "green", "pick apple"),
     cutTree: new Button(1*16, 17.75*16, 6*16, 1.5*16, "red", "cut"),
+
+    upgradeMaterial: new Button(27*16, 7.25*16, 4*16, 1.5*16, "red", "🡅 $" + UPGRADE_MATERIAL_COST),
 };
 
 // socket messages ////////////////////////////////////////////////////////////////
@@ -74,9 +86,25 @@ const button = {
 socket.on("change_turn", (_currentTurn) => {
     currentTurn = _currentTurn;
 
-    Object.values(button).forEach(button => {
-        button.enabled = isCurrentTurn();
-    });
+    button.endTurn.enabled = isCurrentTurn();
+    button.assignVillager.enabled = role == "chief" && isCurrentTurn();
+
+    button.collectBricks.enabled = factory.bricks > 0 && isCurrentTurn();
+    button.harvestCrop.enabled = isCurrentTurn();
+    button.pickTree.enabled = isCurrentTurn();
+    button.cutTree.enabled = isCurrentTurn();
+
+    button.upgradeMaterial.enabled = role == "engineer" && isCurrentTurn() && budget >= UPGRADE_MATERIAL_COST;
+
+    healChances = role == "doctor" ? 3 : 1;
+    if(rolesPresent["doctor"])
+        button.healVillager.text = `heal (${healChances})`;
+
+    if(selectedInfoType("villager"))
+    {
+        infoSelected = villagers.find(obj => obj.name == infoSelected.name);
+        refreshHealButton();
+    }
 });
 
 socket.on("day", (_day, _daysUntilNextSeason) => {
@@ -92,8 +120,6 @@ socket.on("season", (_season, _nextSeason) => {
 socket.on("event", (_event, _nextEvent) => {
     event = _event;
     nextEvent = _nextEvent;
-    console.log(event);
-    console.log(nextEvent);
 });
 
 socket.on("budget", (_budget) => {
@@ -110,14 +136,17 @@ socket.on("villager", (_villager) => {
         }
     }
 
-    if(infoSelected && infoSelected.infoType == "villager")
+    if(selectedInfoType("villager"))
+    {
         infoSelected = villagers.find(obj => obj.name == infoSelected.name);
+        refreshHealButton();
+    }
 });
 
 socket.on("villagers", (_villagers) => {
     villagers = _villagers;
 
-    if(infoSelected && infoSelected.infoType == "villager")
+    if(selectedInfoType("villager"))
         infoSelected = villagers.find(obj => obj.name == infoSelected.name);
 });
 
@@ -128,15 +157,23 @@ socket.on("paths", (_paths) => {
 socket.on("facility", (_facility) => {
     facilities[_facility.label] = _facility;
 
-    if(infoSelected && infoSelected.infoType == "facility")
+    if(selectedInfoType("facility"))
         infoSelected = facilities[infoSelected.label];
 });
 
 socket.on("facilities", (_facilities) => {
     facilities = _facilities;
 
-    if(infoSelected && infoSelected.infoType == "facility")
+    if(selectedInfoType("facility"))
         infoSelected = facilities[infoSelected.label];
+});
+
+socket.on("factory", (_factory) => {
+    factory = _factory;
+    button.collectBricks.enabled = factory.bricks > 0;
+
+    if(selectedInfoType("factory"))
+        infoSelected = factory;
 });
 
 socket.on("inventory", (_inventory) => {
@@ -146,7 +183,7 @@ socket.on("inventory", (_inventory) => {
 socket.on("farm", (_farm) => {
     farm = _farm;
 
-    if(infoSelected && infoSelected.infoType == "farmland")
+    if(selectedInfoType("farmland"))
         infoSelected = farm.find(obj => obj.id == infoSelected.id);
 });
 
@@ -184,6 +221,10 @@ socket.on("give_item", (_item, _amount) => {
     giveItem(_item, _amount);
 });
 
+socket.on("heal_chances", (_healChances) => {
+    healChances = _healChances;
+});
+
 
 // event handlers ////////////////////////////////////////////////////////////////
 
@@ -198,16 +239,31 @@ function onClick(e)
         return;
     }
 
+    if(selectedInfoType("factory") && buttonClick(button.collectBricks))
+    {
+        socket.emit("collect_bricks", roomId);
+        return;
+    }
+
     if(selectedInfoType("farmland") && buttonClick(button.harvestCrop))
     {
         harvestCrop();
         return;
     }
 
-    if(selectedInfoType("villager") && buttonClick(button.assignVillager))
+    if(selectedInfoType("villager"))
     {
-        startAssign();
-        return;
+        if(buttonClick(button.assignVillager))
+        {
+            startAssign();
+            return;
+        }
+        else if(buttonClick(button.healVillager))
+        {
+            healVillager();
+            return;
+        }
+        
     }
 
     if(selectedInfoType("tree"))
@@ -266,21 +322,32 @@ function onClick(e)
 
         if(!selectedVillager)
         {
-            farm.forEach(farmland => {
+            if(mouseInteract(factory))
+            {
+                infoSelected = factory;
+                button.collectBricks.enabled = factory.bricks > 0;
+                return;
+            }
+
+            for(let i = 0; i < farm.length; i++)
+            {
+                let farmland = farm[i];
                 if(!farmland.locked && mouseInteract(farmland))
                 {
                     if(!heldItemStack || farmland.crop)
+                    {
                         infoSelected = farmland;
+                        return;
+                    }
                     else if(heldItemStack.item.type == "seed")
                     {
                         plantCrop(farmland);
                         useItem = true;
+                        break;
                     }
                 }
-            });
+            }
         }
-
-        if(infoSelected) return;
 
         if(!useItem)
         {
@@ -314,6 +381,13 @@ function onClick(e)
                     button.assignVillager.enabled = true;
                 }
                 infoSelected = villager;
+
+                refreshHealButton();
+
+                if(rolesPresent["doctor"])
+                    button.healVillager.text = `heal (${healChances})`;
+                else
+                    button.healVillager.text = `heal ($${HEAL_VILLAGER_COST})`;
             }
         });
 
@@ -354,6 +428,12 @@ function onClick(e)
     {
         if(!isCurrentTurn()) return;
 
+        if(buttonClick(button.upgradeMaterial))
+        {
+            isUpgrading = true;
+            button.upgradeMaterial.enabled = false;
+        }
+
         for(let i = 0; i < inventory.length; i++)
         {
             const obj = {
@@ -367,8 +447,17 @@ function onClick(e)
 
             if(mouseInteract(obj))
             {
-                heldItemStack = inventory[i];
-                closeInventory();
+                if(!isUpgrading)
+                {
+                    heldItemStack = inventory[i];
+                    closeInventory();
+                }
+                else if(inventory[i].item.type == "material")
+                {
+                    upgradeMaterial(inventory[i]);
+                    button.upgradeMaterial.enabled = budget >= UPGRADE_MATERIAL_COST;
+                    isUpgrading = false;
+                }
             }
         }
     }
@@ -499,8 +588,14 @@ function closeInventory()
     {
         windowStack.pop();
 
-        button.assignVillager.enabled = isCurrentTurn();
-        button.healVillager.enabled = isCurrentTurn();
+        button.assignVillager.enabled = role == "chief" && isCurrentTurn();
+        refreshHealButton();
+
+        if(isUpgrading)
+        {
+            isUpgrading = false;
+            button.upgradeMaterial.enabled = true;
+        }
     }
 }
 
@@ -516,7 +611,7 @@ function plantCrop(farmland)
     farmland.label = farmland.daysLeft + " days";
     socket.emit("farm", roomId, farm);
 
-    useItem();
+    useItem(heldItemStack);
 }
 
 function harvestCrop()
@@ -553,6 +648,9 @@ function giveItem(item, amount)
     {
         if(inventory[i].item.id == item.id)
         {
+            if(inventory[i].item.type == "material" && inventory[i].item.upgraded != item.upgraded)
+                continue;
+
             inventory[i].amount += amount;
             return;
         }
@@ -625,7 +723,24 @@ function feedVillager(villager)
 
     socket.emit("villager", roomId, villager);
 
-    useItem();
+    useItem(heldItemStack);
+}
+
+function healVillager()
+{
+    let villager = infoSelected;
+    villager.sick = false;
+    villager.labelColor = "white";
+
+    if(rolesPresent["doctor"])
+    {
+        healChances--;
+        button.healVillager.text = `heal (${healChances})`;
+    }
+    else
+        spendBudget(HEAL_VILLAGER_COST);
+
+    socket.emit("villager", roomId, villager);
 }
 
 function moveVillager()
@@ -651,22 +766,62 @@ function moveVillager()
 function useMaterial(facility)
 {
     facility.progress += heldItemStack.item.progress;
-    useItem();
+    useItem(heldItemStack);
 
     socket.emit("facility", roomId, facility);
 }
 
-function useItem()
+function useItem(itemStack)
 {
-    heldItemStack.amount--;
+    itemStack.amount--;
 
-    if(heldItemStack.amount == 0)
+    if(itemStack.amount == 0)
     {
         // remove item from inventory
-        const index = inventory.indexOf(heldItemStack);
+        const index = inventory.indexOf(itemStack);
         inventory.splice(index, 1);
 
-        heldItemStack = null;
+        if(itemStack == heldItemStack) heldItemStack = null;
+    }
+}
+
+function upgradeMaterial(itemStack)
+{
+    spendBudget(UPGRADE_MATERIAL_COST);
+
+    if(Math.random() < 0.5)
+    {
+        let newItem = Object.assign({}, itemStack.item);
+        newItem.name += "+";
+        newItem.progress = newItem.upgradedProgress;
+        newItem.upgraded = true;
+
+        useItem(itemStack);
+        giveItem(newItem, 1);
+    }
+}
+
+function spendBudget(amount)
+{
+    budget -= amount;
+    socket.emit("budget", roomId, budget);
+}
+
+// refresh ////////////////////////////////////////////////////////////////
+
+function refreshHealButton()
+{
+    button.healVillager.enabled = false;
+
+    if(!isCurrentTurn() || !selectedInfoType("villager"))
+        return;
+
+    if(infoSelected.sick)
+    {
+        if(rolesPresent["doctor"])
+            button.healVillager.enabled = healChances > 0;
+        else
+            button.healVillager.enabled = budget >= HEAL_VILLAGER_COST;
     }
 }
 
@@ -773,7 +928,7 @@ function drawVillager(villager, x, y, scale)
         }
 
         // turn skin green if sick
-        if(villager.sick)
+        if(villager.sick && i > hairData.data.length / 2)
         {
             if(hairData.data[i] == 255 && hairData.data[i+1] == 215 && hairData.data[i+2] == 190)
             {
@@ -914,6 +1069,17 @@ function drawFacilities()
     });
 }
 
+function drawFactory()
+{
+    if(!factory) return;
+
+    if(heldItemStack && heldItemStack.item.type == "material")
+        return;
+
+    if(getActiveWindow() == "main" && !selectedVillager && mouseInteract(factory))
+        setLabel(factory);
+}
+
 function drawFarmland()
 {
     farm.forEach(obj => {
@@ -996,7 +1162,7 @@ function drawInfoPanel()
 
             let textRight = [
                 villager.sick == true ? "sick" : "healthy",
-                villager.happiness + " / 100",
+                (role == "sociologist" ? villager.happiness : "?") + " / 100",
                 villager.hunger + " / 5",
                 villager.mostEffectiveTask,
                 villager.leastEffectiveTask,
@@ -1027,28 +1193,51 @@ function drawInfoPanel()
         {
             let facility = infoSelected;
             
+            if(true)
+            {
+                ctx.font = '32px Kenney Mini Square';
+                ctx.fillStyle = "black";
+                ctx.textAlign = "center";
+                ctx.fillText(facility.label, 16*4*SCALE, 16*7*SCALE);
+
+                ctx.font = '16px Kenney Mini Square';
+                ctx.fillText("level: " + facility.level, 16*4*SCALE, 16*9*SCALE);
+                ctx.fillText("progress: " + facility.progress + " / " + facility.progressMax, 16*4*SCALE, 16*10*SCALE);
+
+                ctx.fillText("assigned villagers:", 16*4*SCALE, 16*12*SCALE);
+
+                for(let i = 0; i < facility.assignedVillagers.length; i++)
+                {
+                    drawVillager(villagers.find(v => v.name == facility.assignedVillagers[i]),
+                    16*(1 + (i % 6)),
+                    16*(13.25 + Math.floor(i/6) * 1.5),
+                    1);
+                }
+                
+                // facility.assignedVillagers.forEach(villager => {
+                //     ctx.fillText(villager, 16*4*SCALE, 16*(13 + villagerCount)*SCALE);
+                // });
+
+                if(facility.assignedVillagers.length == 0)
+                    ctx.fillText("(none)", 16*4*SCALE, 16*13*SCALE);
+            }
+            
+            ctx.textAlign = "left";
+            break;
+        }
+        case "factory":
+        {
             ctx.font = '32px Kenney Mini Square';
             ctx.fillStyle = "black";
             ctx.textAlign = "center";
-            ctx.fillText(facility.label, 16*4*SCALE, 16*7*SCALE);
+            ctx.fillText("factory", 16*4*SCALE, 16*7*SCALE);
 
             ctx.font = '16px Kenney Mini Square';
-            ctx.fillText("level: " + facility.level, 16*4*SCALE, 16*9*SCALE);
-            ctx.fillText("progress: " + facility.progress + " / " + facility.progressMax, 16*4*SCALE, 16*10*SCALE);
-
-            ctx.fillText("assigned villagers:", 16*4*SCALE, 16*12*SCALE);
-
-            let villagerCount = 0;
-            facility.assignedVillagers.forEach(villager => {
-                ctx.fillText(villager, 16*4*SCALE, 16*(13 + villagerCount)*SCALE);
-                villagerCount++;
-            });
-
-            if(villagerCount == 0)
-                ctx.fillText("(none)", 16*4*SCALE, 16*13*SCALE);
-
+            ctx.fillText("bricks: " + factory.bricks, 16*4*SCALE, 16*9*SCALE);
+            ctx.fillText("brick progress: " + factory.brickProgress + " / 10", 16*4*SCALE, 16*10*SCALE);
             ctx.textAlign = "left";
 
+            drawButton(button.collectBricks);
             break;
         }
         case "farmland":
@@ -1186,6 +1375,8 @@ function drawInventory()
     ctx.fillStyle = "black";
     ctx.fillText("inventory", 16*11*SCALE, 16*7.5*SCALE);
 
+    if(role == "engineer") drawButton(button.upgradeMaterial);
+
     for(let i = 0; i < INVENTORY_SIZE; i++)
     {
         ctx.lineWidth = 1;
@@ -1214,7 +1405,17 @@ function drawInventory()
 
         if(i < inventory.length)
         {
-            if(mouseInteract(obj))
+            if(isUpgrading && inventory[i].item.type != "material")
+            {
+                ctx.fillStyle = "#888888";
+                ctx.fillRect(
+                    obj.interactBox.x * SCALE,
+                    obj.interactBox.y * SCALE,
+                    obj.interactBox.width * SCALE,
+                    obj.interactBox.height * SCALE);
+            }
+
+            if((!isUpgrading || inventory[i].item.type == "material") && mouseInteract(obj))
             {
                 ctx.fillStyle = "#EEEEEE";
                 ctx.fillRect(
@@ -1246,6 +1447,15 @@ function drawInventory()
             ctx.fillText(inventory[i].amount,
                 16*(11 + ((i % 8) + 1) * INVENTORY_BOX_SIZE - 0.25)*SCALE,
                 16*(9 + (Math.floor(i / 8) + 1) * INVENTORY_BOX_SIZE - 0.25)*SCALE);
+
+
+            if(inventory[i].item.type == "material" && inventory[i].item.upgraded)
+            {
+                ctx.fillStyle = "orange";
+                ctx.fillText("★",
+                    16*(11 + ((i % 8) + 1) * INVENTORY_BOX_SIZE - 0.25)*SCALE,
+                    16*(9 + (Math.floor(i / 8) + 1) * INVENTORY_BOX_SIZE - 1.75)*SCALE);
+            }
         }
     }
 
@@ -1302,6 +1512,7 @@ export function draw()
     ctx.drawImage(img.background, 0, 0, img.background.width * SCALE, img.background.height * SCALE);
     
     drawFacilities();
+    drawFactory();
     drawFarmland();
     drawVillagers();
     

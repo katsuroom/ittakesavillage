@@ -31,6 +31,9 @@ socket.on("select_role", (_role) => {
 });
 
 socket.on("refresh_roles", (_rolesPresent) => {
+
+    rolesPresent = _rolesPresent;
+
     for(const [role, present] of Object.entries(_rolesPresent))
         buttons[role].enabled = !present;
 });

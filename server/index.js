@@ -151,6 +151,7 @@ function startGame(roomId)
     game.initPaths();
     game.initVillagers();
     game.initFacilities();
+    game.initFactory();
     game.initInventory();
     game.initFarmland();
     game.initTrees();
@@ -172,10 +173,10 @@ function startGame(roomId)
         io.sockets.to(player.id).emit("villagers", game.villagers);
         io.sockets.to(player.id).emit("paths", game.paths);
         io.sockets.to(player.id).emit("facilities", game.facilities);
+        io.sockets.to(player.id).emit("factory", game.factory);
         io.sockets.to(player.id).emit("inventory", game.inventory);
         io.sockets.to(player.id).emit("farm", game.farm);
         io.sockets.to(player.id).emit("trees", game.trees, game.rolesPresent["scientist"]);
-
         io.sockets.to(player.id).emit("event", game.event, game.nextEvent);
         io.sockets.to(player.id).emit("change_turn", game.currentTurn);
     });
@@ -345,6 +346,7 @@ io.on("connection", (socket) => {
 
             io.sockets.to(player.id).emit("villagers", game.villagers);
             io.sockets.to(player.id).emit("facilities", game.facilities);
+            io.sockets.to(player.id).emit("factory", game.factory);
             io.sockets.to(player.id).emit("farm", game.farm);
             io.sockets.to(player.id).emit("trees", game.trees, game.rolesPresent["scientist"]);
 
@@ -376,6 +378,26 @@ io.on("connection", (socket) => {
         });
 
         socket.emit("give_item", global.ITEMS.wood, 5);
+    });
+
+    socket.on("collect_bricks", (_roomId) => {
+        let game = games[_roomId];
+
+        socket.emit("give_item", global.ITEMS.brick, game.factory.bricks);
+
+        game.factory.bricks = 0;
+
+        game.players.forEach(player => {
+            io.sockets.to(player.id).emit("factory", game.factory, true);
+        });
+    });
+
+    socket.on("budget", (_roomId, _budget) => {
+        let game = games[_roomId];
+        game.budget = _budget;
+        game.players.forEach(player => {
+            io.sockets.to(player.id).emit("budget", game.budget);
+        });
     });
 
     socket.on("disconnect", () => disconnect(socket));
