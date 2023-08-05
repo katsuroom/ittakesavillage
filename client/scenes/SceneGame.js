@@ -79,6 +79,7 @@ const button = {
     cutTree: new Button(1*16, 17.75*16, 6*16, 1.5*16, "red", "cut"),
 
     upgradeMaterial: new Button(27*16, 7.25*16, 4*16, 1.5*16, "red", "🡅 $" + UPGRADE_MATERIAL_COST),
+    upgradeFacility: new Button(1*16, 19.5*16, 6*16, 1.5*16, "red", "upgrade")
 };
 
 // socket messages ////////////////////////////////////////////////////////////////
@@ -251,6 +252,12 @@ function onClick(e)
         return;
     }
 
+    if(selectedInfoType("facility") && buttonClick(button.upgradeFacility))
+    {
+        socket.emit("upgrade_facility", roomId, infoSelected);
+        return;
+    }
+
     if(selectedInfoType("villager"))
     {
         if(buttonClick(button.assignVillager))
@@ -363,9 +370,13 @@ function onClick(e)
                     {
                         useMaterial(facility);
                         infoSelected = facility;
+                        refreshUpgradeFacilityButton();
                     }
                     else
+                    {
                         infoSelected = facility;
+                        refreshUpgradeFacilityButton();
+                    }
                 }
             });
         }
@@ -675,6 +686,14 @@ function finishAssign(facility)
         return;
     }
 
+    // villager is assigned to same facility
+    if(selectedVillager.currentTask == facility.label)
+    {
+        selectedVillager = null;
+        button.assignVillager.enabled = true;
+        return;
+    }
+
     // remove villager from current assigned facility
     let oldFacility = null;
 
@@ -765,10 +784,24 @@ function moveVillager()
 
 function useMaterial(facility)
 {
-    facility.progress += heldItemStack.item.progress;
-    useItem(heldItemStack);
+    if(facility.progress == facility.progressMax)
+    {
+        if(facility.cost[heldItemStack.item.id] > 0)
+        {
+            facility.cost[heldItemStack.item.id]--;
+            useItem(heldItemStack);
+            socket.emit("facility", roomId, facility);
+        }
+    }
+    else
+    {   
+        facility.progress += heldItemStack.item.progress;
+        if(facility.progress > facility.progressMax)
+            facility.progress = facility.progressMax;
 
-    socket.emit("facility", roomId, facility);
+        useItem(heldItemStack);
+        socket.emit("facility", roomId, facility);
+    }
 }
 
 function useItem(itemStack)
@@ -789,10 +822,21 @@ function upgradeMaterial(itemStack)
 {
     spendBudget(UPGRADE_MATERIAL_COST);
 
-    if(Math.random() < 0.5)
+    let success = 0;
+    switch(facilities["education"].level)
+    {
+        case 1: success = 0.6; break;
+        case 2: success = 0.7; break;
+        case 3: success = 0.8; break;
+        case 4: success = 0.9; break;
+        case 5: success = 1.0; break;
+        default: break;
+    }
+
+    if(Math.random() < success)
     {
         let newItem = Object.assign({}, itemStack.item);
-        newItem.name += "+";
+        newItem.name += "★";
         newItem.progress = newItem.upgradedProgress;
         newItem.upgraded = true;
 
@@ -825,6 +869,21 @@ function refreshHealButton()
     }
 }
 
+function refreshUpgradeFacilityButton()
+{
+    button.upgradeFacility.enabled = false;
+    
+    if(isCurrentTurn() && selectedInfoType("facility") && infoSelected.progress == infoSelected.progressMax)
+    {
+        let enable = true;
+        Object.values(infoSelected.cost).forEach(amount => {
+            if(amount > 0)
+                enable = false;
+        });
+
+        button.upgradeFacility.enabled = enable;
+    }
+}
 
 // drawing ////////////////////////////////////////////////////////////////
 
@@ -864,17 +923,36 @@ function drawItemLabel(interactBox, item)
     let textHeight = nameRect.fontBoundingBoxAscent + nameRect.fontBoundingBoxDescent;
     let padding = 8;
 
-    ctx.fillStyle = "black";
-    ctx.fillRect(
-        (interactBox.x + interactBox.width/2) * SCALE - textWidth/2 - padding,
-        (interactBox.y * SCALE) - 60 - padding/2,
-        textWidth + 2 * padding,
-        (textHeight + padding) * 2);
+    if(item.type == "material")
+    {
+        ctx.fillStyle = "black";
+        ctx.fillRect(
+            (interactBox.x + interactBox.width/2) * SCALE - textWidth/2 - padding,
+            (interactBox.y * SCALE) - 60 - padding/2 - (textHeight + padding),
+            textWidth + 2 * padding,
+            (textHeight + padding) * 3);
 
-    ctx.fillStyle = "white";
-    ctx.fillText(item.name, (interactBox.x + interactBox.width/2) * SCALE, (interactBox.y * SCALE) - 60);
-    ctx.fillStyle = "dodgerblue";
-    ctx.fillText(item.type, (interactBox.x + interactBox.width/2) * SCALE, (interactBox.y * SCALE) - 36);
+        ctx.fillStyle = "white";
+        ctx.fillText(item.name, (interactBox.x + interactBox.width/2) * SCALE, (interactBox.y * SCALE) - 84);
+        ctx.fillStyle = item.upgraded ? "orange" : "gray";
+        ctx.fillText("+" + item.progress, (interactBox.x + interactBox.width/2) * SCALE, (interactBox.y * SCALE) - 60);
+        ctx.fillStyle = "dodgerblue";
+        ctx.fillText(item.type, (interactBox.x + interactBox.width/2) * SCALE, (interactBox.y * SCALE) - 36);
+    }
+    else
+    {
+        ctx.fillStyle = "black";
+        ctx.fillRect(
+            (interactBox.x + interactBox.width/2) * SCALE - textWidth/2 - padding,
+            (interactBox.y * SCALE) - 60 - padding/2,
+            textWidth + 2 * padding,
+            (textHeight + padding) * 2);
+
+        ctx.fillStyle = "white";
+        ctx.fillText(item.name, (interactBox.x + interactBox.width/2) * SCALE, (interactBox.y * SCALE) - 60);
+        ctx.fillStyle = "dodgerblue";
+        ctx.fillText(item.type, (interactBox.x + interactBox.width/2) * SCALE, (interactBox.y * SCALE) - 36);
+    }
 }
 
 function drawVillager(villager, x, y, scale)
@@ -1192,35 +1270,64 @@ function drawInfoPanel()
         case "facility":
         {
             let facility = infoSelected;
-            
-            if(true)
+
+            ctx.font = '32px Kenney Mini Square';
+            ctx.fillStyle = "black";
+            ctx.textAlign = "center";
+
+            if(facility.label == "power")
             {
-                ctx.font = '32px Kenney Mini Square';
-                ctx.fillStyle = "black";
-                ctx.textAlign = "center";
                 ctx.fillText(facility.label, 16*4*SCALE, 16*7*SCALE);
 
                 ctx.font = '16px Kenney Mini Square';
                 ctx.fillText("level: " + facility.level, 16*4*SCALE, 16*9*SCALE);
                 ctx.fillText("progress: " + facility.progress + " / " + facility.progressMax, 16*4*SCALE, 16*10*SCALE);
+            }
+            else
+            {
+                ctx.fillText(facility.label, 16*4*SCALE, 16*4*SCALE);
 
-                ctx.fillText("assigned villagers:", 16*4*SCALE, 16*12*SCALE);
+                ctx.font = '16px Kenney Mini Square';
+                ctx.fillText("level: " + facility.level, 16*4*SCALE, 16*6*SCALE);
+                ctx.fillText("progress: " + facility.progress + " / " + facility.progressMax, 16*4*SCALE, 16*7*SCALE);
 
-                for(let i = 0; i < facility.assignedVillagers.length; i++)
+                ctx.fillStyle = facility.progress == facility.progressMax ? "black" : "gray";
+                ctx.fillText("upgrade cost", 16*4*SCALE, 16*9*SCALE);
+                let i = 0;
+                for (const [item, amount] of Object.entries(facility.cost)) {
+                    ctx.fillText(item + ": " + amount, 16*4*SCALE, 16*(10+i)*SCALE);
+                    i++;
+                }
+            }
+
+            ctx.fillStyle = "black";
+            ctx.fillText("assigned villagers:", 16*4*SCALE, 16*13*SCALE);
+
+            let rows = Math.floor(facility.assignedVillagers.length / 6);
+            let remaining = facility.assignedVillagers.length % 6;
+
+            for(let i = 0; i < facility.assignedVillagers.length; i++)
+            {
+                if(i < rows * 6)
                 {
                     drawVillager(villagers.find(v => v.name == facility.assignedVillagers[i]),
                     16*(1 + (i % 6)),
-                    16*(13.25 + Math.floor(i/6) * 1.5),
+                    16*(14.25 + Math.floor(i/6) * 1.5),
                     1);
                 }
-                
-                // facility.assignedVillagers.forEach(villager => {
-                //     ctx.fillText(villager, 16*4*SCALE, 16*(13 + villagerCount)*SCALE);
-                // });
-
-                if(facility.assignedVillagers.length == 0)
-                    ctx.fillText("(none)", 16*4*SCALE, 16*13*SCALE);
+                else
+                {
+                    drawVillager(villagers.find(v => v.name == facility.assignedVillagers[i]),
+                    16*(4 - remaining*0.5 + (i % 6)),
+                    16*(14.25 + Math.floor(i/6) * 1.5),
+                    1);
+                }
             }
+
+            if(facility.assignedVillagers.length == 0)
+                ctx.fillText("(none)", 16*4*SCALE, 16*14*SCALE);
+
+            drawButton(button.upgradeFacility);
             
             ctx.textAlign = "left";
             break;

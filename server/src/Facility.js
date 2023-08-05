@@ -11,6 +11,11 @@ class Facility extends Interactable {
         this.assignedVillagers = [];    // string array of villager names
         
         this.infoType = "facility";
+
+        this.cost = {
+            "brick": 0,
+            "steel": 0
+        };
     }
 }
 

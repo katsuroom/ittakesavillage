@@ -400,6 +400,16 @@ io.on("connection", (socket) => {
         });
     });
 
+    socket.on("upgrade_facility", (_roomId, _facility) => {
+        let game = games[_roomId];
+        let facility = game.facilities[_facility.label];
+        game.upgradeFacility(facility);
+
+        game.players.forEach(player => {
+            io.sockets.to(player.id).emit("facility", facility);
+        });
+    });
+
     socket.on("disconnect", () => disconnect(socket));
 
     socket.on("server_info", () => {

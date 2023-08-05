@@ -142,6 +142,11 @@ class Game {
         this.facilities["power"].label = "power";
         this.facilities["power"].labelColor = "#FFFF00";
         this.facilities["power"].interactBox = {x: 16*16, y: 16*2, width: 64, height: 16*3};
+
+        Object.values(this.facilities).forEach(facility => {
+            facility.cost["brick"] = 3;
+            facility.cost["steel"] = 0;
+        });
     }
 
     initFactory()
@@ -224,6 +229,34 @@ class Game {
         let tree = this.trees.find(tree => tree.id == treeId);
         tree.daysLeft = 0;
         tree.cut = true;
+    }
+
+    upgradeFacility(facility)
+    {
+        facility.progress = 0;
+        facility.level++;
+        switch(facility.level)
+        {
+            case 2:
+                facility.progressMax = 80;
+                facility.cost["brick"] = 5;
+                facility.cost["steel"] = 1;
+                break;
+            case 3:
+                facility.progressMax = 100;
+                facility.cost["brick"] = 8;
+                facility.cost["steel"] = 2;
+                break;
+            case 4:
+                facility.progressMax = 100;
+                facility.cost["brick"] = 10;
+                facility.cost["steel"] = 5;
+                break;
+            case 5:
+                break;
+            default:
+                break;
+        }
     }
 
     // calculations
