@@ -180,6 +180,17 @@ function startGame(roomId)
         io.sockets.to(player.id).emit("event", game.event, game.nextEvent);
         io.sockets.to(player.id).emit("change_turn", game.currentTurn);
     });
+
+    io.sockets.to(game.players[game.currentTurn].id).emit("daily_loot", generateLoot(), global.LOOT_AMOUNT);
+}
+
+function generateLoot()     // returns array of loot items
+{
+    let loot = [];
+    for(let i = 0; i < global.LOOT_AMOUNT * 2; i++)
+        loot.push(global.DAILY_LOOT.getItem());
+
+    return loot;
 }
 
 function disconnect(socket)
@@ -354,6 +365,8 @@ io.on("connection", (socket) => {
 
             io.sockets.to(player.id).emit("change_turn", game.currentTurn);
         });
+
+        io.sockets.to(game.players[game.currentTurn].id).emit("daily_loot", generateLoot(), global.LOOT_AMOUNT);
     });
 
     socket.on("pick_tree", (_roomId, _treeId) => {

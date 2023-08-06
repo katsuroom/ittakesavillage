@@ -117,6 +117,20 @@ const EVENTS_WINTER = new RandomTable([
     new Option(EVENTS["death"], 15),
 ]);
 
+const DAILY_LOOT = new RandomTable([
+    new Option(ITEMS.cucumberSeed, 15),
+    new Option(ITEMS.tomatoSeed, 15),
+    new Option(ITEMS.potatoSeed, 15),
+    new Option(ITEMS.carrotSeed, 15),
+    new Option(ITEMS.cucumber, 5),
+    new Option(ITEMS.tomato, 5),
+    new Option(ITEMS.potato, 5),
+    new Option(ITEMS.carrot, 5),
+    new Option(ITEMS.brick, 20),
+]);
+
+const LOOT_AMOUNT = 2;
+
 module.exports = {
     VILLAGER_COUNT,
     FARMLAND_COUNT,
@@ -127,11 +141,13 @@ module.exports = {
     TREE_GROWTH_TIME,
     ITEMS,
     SEASONS,
+    EVENT_DURATION_MIN,
+    EVENT_DURATION_MAX,
     EVENTS,
     EVENTS_SPRING,
     EVENTS_SUMMER,
     EVENTS_AUTUMN,
     EVENTS_WINTER,
-    EVENT_DURATION_MIN,
-    EVENT_DURATION_MAX
+    DAILY_LOOT,
+    LOOT_AMOUNT
 };

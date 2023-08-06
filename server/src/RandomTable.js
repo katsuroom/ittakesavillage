@@ -23,7 +23,13 @@ class RandomTable {
             rand -= this.options[i].weight;
 
             if(rand < 0)
-                return this.options[i].data.clone();
+            {
+                let obj = {};
+                for (const key in this.options[i].data)
+                    obj[key] = this.options[i].data[key];
+
+                return obj;
+            }
         }
 
         return null;

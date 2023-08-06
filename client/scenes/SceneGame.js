@@ -40,6 +40,9 @@ let trees = [];                 // array of apple trees
 
 let inventory = [];             // array of ItemStack objects in inventory
 
+let dailyLoot = [];             // array of available loot items
+let lootAmount = 0;
+
 
 // role specific
 
@@ -108,6 +111,13 @@ socket.on("change_turn", (_currentTurn) => {
     }
 });
 
+socket.on("daily_loot", (_loot, amount) => {
+    windowStack.push("daily_loot");
+
+    dailyLoot = _loot;
+    lootAmount = amount;
+});
+
 socket.on("day", (_day, _daysUntilNextSeason) => {
     day = _day;
     daysUntilNextSeason = _daysUntilNextSeason;
@@ -159,14 +169,20 @@ socket.on("facility", (_facility) => {
     facilities[_facility.label] = _facility;
 
     if(selectedInfoType("facility"))
+    {
         infoSelected = facilities[infoSelected.label];
+        refreshUpgradeFacilityButton();
+    }
 });
 
 socket.on("facilities", (_facilities) => {
     facilities = _facilities;
 
     if(selectedInfoType("facility"))
+    {
         infoSelected = facilities[infoSelected.label];
+        refreshUpgradeFacilityButton();
+    }
 });
 
 socket.on("factory", (_factory) => {
@@ -437,7 +453,7 @@ function onClick(e)
 
     if(getActiveWindow() == "inventory")
     {
-        if(!isCurrentTurn()) return;
+        if(!isCurrentTurn() || lootAmount > 0) return;
 
         if(buttonClick(button.upgradeMaterial))
         {
@@ -468,6 +484,32 @@ function onClick(e)
                     upgradeMaterial(inventory[i]);
                     button.upgradeMaterial.enabled = budget >= UPGRADE_MATERIAL_COST;
                     isUpgrading = false;
+                }
+            }
+        }
+    }
+
+    if(getActiveWindow() == "daily_loot")
+    {
+        let lootBoxWidth = 16*(2 + Math.min(dailyLoot.length, 8) * INVENTORY_BOX_SIZE);
+
+        for(let i = 0; i < dailyLoot.length; i++)
+        {
+            if(dailyLoot[i])
+            {
+                const obj = {
+                    interactBox: {
+                        x: 16*(22 + (i % 8) * INVENTORY_BOX_SIZE + INVENTORY_BOX_MARGIN) - lootBoxWidth/2,
+                        y: 16*(9 + Math.floor(i / 8) * INVENTORY_BOX_SIZE + INVENTORY_BOX_MARGIN),
+                        width: 16*(INVENTORY_BOX_SIZE - 2*INVENTORY_BOX_MARGIN),
+                        height: 16*(INVENTORY_BOX_SIZE - 2*INVENTORY_BOX_MARGIN)
+                    }
+                };
+
+                if(mouseInteract(obj))
+                {
+                    collectLoot(i);
+                    break;
                 }
             }
         }
@@ -851,6 +893,16 @@ function spendBudget(amount)
     socket.emit("budget", roomId, budget);
 }
 
+function collectLoot(index)
+{
+    giveItem(dailyLoot[index], 1);
+    dailyLoot[index] = null;
+    lootAmount--;
+
+    if(lootAmount == 0)
+        windowStack.pop();
+}
+
 // refresh ////////////////////////////////////////////////////////////////
 
 function refreshHealButton()
@@ -876,10 +928,14 @@ function refreshUpgradeFacilityButton()
     if(isCurrentTurn() && selectedInfoType("facility") && infoSelected.progress == infoSelected.progressMax)
     {
         let enable = true;
-        Object.values(infoSelected.cost).forEach(amount => {
-            if(amount > 0)
-                enable = false;
-        });
+
+        if(infoSelected.label != "power")
+        {
+            Object.values(infoSelected.cost).forEach(amount => {
+                if(amount > 0)
+                    enable = false;
+            });
+        }
 
         button.upgradeFacility.enabled = enable;
     }
@@ -1466,6 +1522,89 @@ function drawActionPanel()
     drawButton(button.endTurn);
 }
 
+function drawLoot()
+{
+    if(getActiveWindow() != "daily_loot") return;
+
+    ctx.save();
+
+    ctx.fillStyle = "#FFDD55";
+
+    let lootBoxWidth = 16*(2 + Math.min(dailyLoot.length, 8) * INVENTORY_BOX_SIZE);
+    let lootBoxHeight = 16*(3+2.5*Math.ceil(dailyLoot.length/8));
+
+    ctx.fillRect((16*21 - lootBoxWidth/2)*SCALE, 16*7*SCALE, lootBoxWidth*SCALE, lootBoxHeight*SCALE);
+    ctx.strokeStyle = "black";
+    ctx.lineWidth = 4;
+    ctx.strokeRect((16*21 - lootBoxWidth/2)*SCALE, 16*7*SCALE, lootBoxWidth*SCALE, lootBoxHeight*SCALE);
+
+    ctx.font = '24px Kenney Mini Square';
+    ctx.fillStyle = "black";
+    ctx.fillText("daily loot", (16*22 - lootBoxWidth/2)*SCALE, 16*7.5*SCALE);
+
+    ctx.textAlign = "right";
+    ctx.fillText("pick " + lootAmount, (16*20 + lootBoxWidth/2)*SCALE, 16*7.5*SCALE);
+    ctx.textAlign = "left";
+
+    for(let i = 0; i < dailyLoot.length; i++)
+    {
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = "black";
+        ctx.fillStyle = "black";
+
+        const obj = {
+            interactBox: {
+                x: 16*(22 + (i % 8) * INVENTORY_BOX_SIZE + INVENTORY_BOX_MARGIN) - lootBoxWidth/2,
+                y: 16*(9 + Math.floor(i / 8) * INVENTORY_BOX_SIZE + INVENTORY_BOX_MARGIN),
+                width: 16*(INVENTORY_BOX_SIZE - 2*INVENTORY_BOX_MARGIN),
+                height: 16*(INVENTORY_BOX_SIZE - 2*INVENTORY_BOX_MARGIN)
+            }
+        };
+
+        ctx.fillStyle = "white";
+        ctx.fillRect(
+            obj.interactBox.x * SCALE,
+            obj.interactBox.y * SCALE,
+            obj.interactBox.width * SCALE,
+            obj.interactBox.height * SCALE);
+        
+        ctx.strokeRect(
+            obj.interactBox.x * SCALE,
+            obj.interactBox.y * SCALE,
+            obj.interactBox.width * SCALE,
+            obj.interactBox.height * SCALE);
+
+        if(dailyLoot[i])
+        {
+            if(mouseInteract(obj))
+            {
+                ctx.fillStyle = "#EEEEEE";
+                ctx.fillRect(
+                    obj.interactBox.x * SCALE,
+                    obj.interactBox.y * SCALE,
+                    obj.interactBox.width * SCALE,
+                    obj.interactBox.height * SCALE);
+
+                drawItemLabel(obj.interactBox, dailyLoot[i]);
+            }
+
+            ctx.font = '24px Kenney Mini Square';
+            ctx.fillStyle = "black";
+            ctx.textAlign = "right";
+            ctx.textBaseline = "bottom";
+
+            let itemName = dailyLoot[i].id;
+            ctx.drawImage(img[itemName],
+                (16*(22 + (i % 8) * INVENTORY_BOX_SIZE + INVENTORY_BOX_SIZE/2 - 1) - lootBoxWidth/2)*SCALE,
+                16*(9 + Math.floor(i / 8) * INVENTORY_BOX_SIZE + INVENTORY_BOX_SIZE/2 - 1)*SCALE,
+                16*2*SCALE,
+                16*2*SCALE);
+        }
+    }
+
+    ctx.restore();
+}
+
 function drawInventory()
 {
     if(getActiveWindow() != "inventory") return;
@@ -1624,12 +1763,14 @@ export function draw()
     drawVillagers();
     
     drawTrees();
-
     drawPaths();
 
     drawActionPanel();
     drawInfoPanel();
+
+    drawLoot();
     drawInventory();
+
     drawLabel();
     drawHeldItemStack();
     drawNotification();
