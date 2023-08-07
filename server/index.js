@@ -18,7 +18,7 @@ httpServer.listen(5000);
 
 const Game = require("./src/Game.js");
 const Player = require("./src/Player.js");
-
+const {Quest, questHolder} = require('./src/Quest.js'); 
 const global = require("./global.js");
 
 const MAX_PLAYERS = 6;
@@ -155,7 +155,7 @@ function startGame(roomId)
     game.initInventory();
     game.initFarmland();
     game.initTrees();
-
+    
     game.event = global.EVENTS["cloudy_day"];
     game.event.duration = 3;
 
@@ -164,34 +164,32 @@ function startGame(roomId)
         + global.EVENT_DURATION_MIN;
 
     game.started = true;
-
+    
     game.players.forEach(player => {
+        
         io.sockets.to(player.id).emit("start_game");
+        io.sockets.to(player.id).emit("game", game);            //game info
         io.sockets.to(player.id).emit("day", game.day, game.daysUntilNextSeason);
+        
         io.sockets.to(player.id).emit("season", game.season, game.nextSeason);
         io.sockets.to(player.id).emit("budget", game.budget);
         io.sockets.to(player.id).emit("villagers", game.villagers);
+        
         io.sockets.to(player.id).emit("paths", game.paths);
         io.sockets.to(player.id).emit("facilities", game.facilities);
+        
         io.sockets.to(player.id).emit("factory", game.factory);
         io.sockets.to(player.id).emit("inventory", game.inventory);
         io.sockets.to(player.id).emit("farm", game.farm);
         io.sockets.to(player.id).emit("trees", game.trees, game.rolesPresent["scientist"]);
         io.sockets.to(player.id).emit("event", game.event, game.nextEvent);
         io.sockets.to(player.id).emit("change_turn", game.currentTurn);
+        
     });
 
-    io.sockets.to(game.players[game.currentTurn].id).emit("daily_loot", generateLoot(), global.LOOT_AMOUNT);
+    io.sockets.to(game.players[game.currentTurn].id).emit("daily_loot", game.generateLoot(game.players[game.currentTurn]), game.players[game.currentTurn].lootAmount);
 }
 
-function generateLoot()     // returns array of loot items
-{
-    let loot = [];
-    for(let i = 0; i < global.LOOT_AMOUNT * 2; i++)
-        loot.push(global.DAILY_LOOT.getItem());
-
-    return loot;
-}
 
 function disconnect(socket)
 {
@@ -232,6 +230,22 @@ function disconnect(socket)
     }
 }
 
+function reconstuctVillager(villager) {
+    for(let key in villager) {
+        if (Object.hasOwnProperty.call(villager, key)) {
+            if(key == "quest"){
+               let newQuest = new questHolder(villager.quest.criteria
+                                    ,villager.quest.index
+                                    ,villager.quest.reward
+                                    ,villager.quest.questString);
+                newQuest.fulfilled = villager.quest.fulfilled;
+                newQuest.redeemed = villager.quest.redeemed;
+                villager.quest = newQuest;
+                return villager;
+            }
+        }
+    }
+}
 
 // calculations ////////////////////////////////////////////////////////////////
 
@@ -258,7 +272,7 @@ io.on("connection", (socket) => {
         {
             if(game.villagers[i].name == _villager.name)
             {
-                game.villagers[i] = _villager;
+                game.villagers[i] = reconstuctVillager(_villager);
                 break;
             }
         }
@@ -282,7 +296,7 @@ io.on("connection", (socket) => {
         {
             if(game.villagers[i].name == _villager.name)
             {
-                game.villagers[i] = _villager;
+                game.villagers[i] = reconstuctVillager(_villager);
                 break;
             }
         }
@@ -309,6 +323,28 @@ io.on("connection", (socket) => {
                     io.sockets.to(player.id).emit("villager", game.villagers[i]);
                 });
 
+                break;
+            }
+        }
+    });
+
+    socket.on("quest", (_roomId, _villager) => {
+        let game = games[_roomId];
+
+        for(let i = 0; i < game.villagers.length; i++)
+        {
+            if(game.villagers[i].name == _villager.name)
+            {
+                let result = game.villagers[i].quest.redeem(game, game.villagers[i]);
+                game.players.forEach(player => {
+                    io.sockets.to(player.id).emit("quest_result", result);
+                    io.sockets.to(player.id).emit("villager" , game.villagers[i]);
+                    io.sockets.to(player.id).emit("budget", game.budget);
+                });
+                if(result != undefined){
+                    game.players[game.currentTurn].lootAmount += 1;
+                }
+                
                 break;
             }
         }
@@ -350,6 +386,7 @@ io.on("connection", (socket) => {
         }
 
         game.players.forEach(player => {
+            io.sockets.to(player.id).emit("game", game);            //game info
             io.sockets.to(player.id).emit("day", game.day, game.daysUntilNextSeason);
 
             if(changeSeason)
@@ -360,13 +397,13 @@ io.on("connection", (socket) => {
             io.sockets.to(player.id).emit("factory", game.factory);
             io.sockets.to(player.id).emit("farm", game.farm);
             io.sockets.to(player.id).emit("trees", game.trees, game.rolesPresent["scientist"]);
-
+            io.sockets.to(player.id).emit("budget", game.budget);
             io.sockets.to(player.id).emit("event", game.event, game.nextEvent);
 
             io.sockets.to(player.id).emit("change_turn", game.currentTurn);
         });
 
-        io.sockets.to(game.players[game.currentTurn].id).emit("daily_loot", generateLoot(), global.LOOT_AMOUNT);
+        io.sockets.to(game.players[game.currentTurn].id).emit("daily_loot", game.generateLoot(game.players[game.currentTurn]), game.players[game.currentTurn].lootAmount);
     });
 
     socket.on("pick_tree", (_roomId, _treeId) => {

@@ -14,7 +14,7 @@ const TREE_GROWTH_TIME = 10;
 const FARMLAND_UNLOCKED = false;
 const FARMLAND_LOCKED = true;
 
-const SICK_CHANCE = 0.5;
+const SICK_CHANCE = 0.01;
 
 const ITEMS = {
     cucumber: new Food("cucumber", "cucumber"),
@@ -129,7 +129,7 @@ const DAILY_LOOT = new RandomTable([
     new Option(ITEMS.brick, 20),
 ]);
 
-const LOOT_AMOUNT = 2;
+
 
 module.exports = {
     VILLAGER_COUNT,
@@ -149,5 +149,4 @@ module.exports = {
     EVENTS_AUTUMN,
     EVENTS_WINTER,
     DAILY_LOOT,
-    LOOT_AMOUNT
 };

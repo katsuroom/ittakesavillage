@@ -4,7 +4,7 @@ const ItemStack = require("./ItemStack.js");
 const Farmland = require("./Farmland.js");
 const Factory = require("./Factory.js");
 const Tree = require("./Tree.js");
-
+const {Quest, questHolder} = require("./Quest.js");
 const global = require("../global.js");
 
 class Game {
@@ -12,7 +12,7 @@ class Game {
     {
         // lobby info
         this.roomId = roomId;
-
+        
         this.players = [];
         this.started = false;
 
@@ -57,8 +57,34 @@ class Game {
         };
 
         this.inventory = [];
+        this.Quest = new Quest();       //quest for game
+        this.finishedQuest = 0;         //finished quest in total
+        this.totalHappiness = 0;        //average happiness for all villagers
+        this.totalSick = 0;             //total sick people each round
+        this.nosickAll = 0;             //not sick for all villagers for x days
+        this.noHunger = 0;              //not hungry for all villagers for x days
     }
-
+    //Calculate all variable related to quest
+    dailyCensus(){
+        let totalSick = 0;
+        let nosickAll = true;
+        let noHunger = true;
+        let totalHappy = 0;
+        this.villagers.forEach((e) => {
+            if(e.sick){
+                totalSick += 1;
+                nosickAll = false;
+            }
+            if(e.hunger < 3)
+                noHunger = false;
+            totalHappy += e.happiness;
+        })
+        this.totalSick = totalSick;
+        this.nosickAll = nosickAll? this.nosickAll += 1: 0;
+        this.noHunger = noHunger? this.noHunger += 1: 0;
+        this.totalHappiness = totalHappy/this.villagers.length;
+    }
+    
     initPaths()
     {
         for(let i = 0; i < 26; i++)
@@ -108,7 +134,7 @@ class Game {
     {
         for(let i = 0; i < global.VILLAGER_COUNT; i++)
         {
-            let villager = new Villager(this.villagers, this.paths);
+            let villager = new Villager(this.villagers, this.paths, this.Quest);
             this.villagers.push(villager);
         }
 
@@ -272,8 +298,12 @@ class Game {
     {
         this.villagers.forEach(villager => {
             
-            if(!villager.currentTask) return;
-
+            if(!villager.currentTask) {
+                villager.notworking += 1;       //notworking count increase
+                return;
+            }
+            if(!villager.participatedBuildings.includes(villager.currentTask))  //participatedBuildings count increase
+                villager.participatedBuildings.push(villager.currentTask);
             if(villager.currentTask == "power") return;
 
             let baseProgress, leastEffectiveMult, mostEffectiveMult = 0;
@@ -367,12 +397,15 @@ class Game {
             if(villager.hunger > 0) villager.hunger--;
 
             villager.fed = false;
-
+            
             // chance of sickness
             if(Math.random() < global.SICK_CHANCE)
             {
                 villager.sick = true;
+                villager.nosick = 0;
                 villager.labelColor = "rgb(0,191,0)";
+            }else {
+                villager.nosick += 1;
             }
 
         });
@@ -442,7 +475,7 @@ class Game {
         this.updateCropGrowth();
         this.updateVillagers();
         this.updateFacilityProgress();
-
+    
         // increment day
         this.day++;
         this.daysUntilNextSeason--;
@@ -451,7 +484,24 @@ class Game {
 
         // change player turn
         this.currentTurn = (this.currentTurn + 1) % this.players.length;
+
+        this.dailyCensus();
+        //check villager quest fullfillment
+        this.villagers.forEach((e) => {
+            if(!e.quest.redeemed)
+                e.quest.fufilled = e.quest.fulfillCheck(this, e);
+        })
     }
+
+    generateLoot(player)     // returns array of loot items
+    {
+        let loot = [];
+        for(let i = 0; i < player.lootAmount * 2; i++)
+            loot.push(global.DAILY_LOOT.getItem());
+
+        return loot;
+    }
+
 };
 
 module.exports = Game;

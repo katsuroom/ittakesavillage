@@ -15,6 +15,7 @@ const INVENTORY_SIZE = 32;
 const UPGRADE_MATERIAL_COST = 10;
 const HEAL_VILLAGER_COST = 100;
 
+let game = null;                //Holding all game info
 let currentTurn = 0;
 
 let day = 0;
@@ -74,7 +75,8 @@ const button = {
 
     assignVillager: new Button(1*16, 16*16, 6*16, 1.5*16, "orange", "assign"),
     healVillager: new Button(1*16, 17.75*16, 6*16, 1.5*16, "blue", "heal"),
-    
+    redeemQuest: new Button(1*15.5, 19.5*16, 6*16, 1.5*16, "green", "redeem"),
+
     collectBricks: new Button(1*16, 16*16, 6*16, 1.5*16, "red", "collect"),
     harvestCrop: new Button(1*16, 16*16, 6*16, 1.5*16, "green", "harvest"),
     
@@ -83,15 +85,20 @@ const button = {
 
     upgradeMaterial: new Button(27*16, 7.25*16, 4*16, 1.5*16, "red", "🡅 $" + UPGRADE_MATERIAL_COST),
     upgradeFacility: new Button(1*16, 19.5*16, 6*16, 1.5*16, "red", "upgrade")
+    
 };
 
 // socket messages ////////////////////////////////////////////////////////////////
+socket.on("game", (_game) => {
+    game = _game;
+})
 
 socket.on("change_turn", (_currentTurn) => {
     currentTurn = _currentTurn;
 
     button.endTurn.enabled = isCurrentTurn();
     button.assignVillager.enabled = role == "chief" && isCurrentTurn();
+    button.redeemQuest.enabled = isCurrentTurn();
 
     button.collectBricks.enabled = factory.bricks > 0 && isCurrentTurn();
     button.harvestCrop.enabled = isCurrentTurn();
@@ -242,6 +249,13 @@ socket.on("heal_chances", (_healChances) => {
     healChances = _healChances;
 });
 
+socket.on("quest_result", (_result) => {
+    if(_result != undefined){
+        button.redeemQuest.enabled = false;
+        giveItem(_result, 3);
+    }
+});
+
 
 // event handlers ////////////////////////////////////////////////////////////////
 
@@ -284,6 +298,10 @@ function onClick(e)
         else if(buttonClick(button.healVillager))
         {
             healVillager();
+            return;
+        }
+        else if(buttonClick(button.redeemQuest)){
+            redeemQuest();
             return;
         }
         
@@ -408,7 +426,8 @@ function onClick(e)
                     button.assignVillager.enabled = true;
                 }
                 infoSelected = villager;
-
+                //redeem button
+                button.redeemQuest.enabled = !villager.quest.redeemed;
                 refreshHealButton();
 
                 if(rolesPresent["doctor"])
@@ -632,6 +651,7 @@ function openInventory()
 
         button.assignVillager.enabled = false;
         button.healVillager.enabled = false;
+        button.redeemQuest.enabled = false;
     }
 }
 
@@ -642,8 +662,8 @@ function closeInventory()
         windowStack.pop();
 
         button.assignVillager.enabled = role == "chief" && isCurrentTurn();
+        refreshRedeemButton();
         refreshHealButton();
-
         if(isUpgrading)
         {
             isUpgrading = false;
@@ -776,11 +796,16 @@ function isHoldingFood()        // bool
 function feedVillager(villager)
 {
     villager.fed = true;
-
-    if(heldItemStack.item.id == villager.favoriteFood)
+    if(heldItemStack.item.id == villager.favoriteFood){
         villager.hunger = 5;
-    else
+        villager.favoriteFoodFedDays += 1;
+    }
+        
+    else{
+        villager.favoriteFoodFedDays = 0;
         villager.hunger = Math.min(villager.hunger + 2, 5);
+    }
+        
 
     socket.emit("villager", roomId, villager);
 
@@ -802,6 +827,12 @@ function healVillager()
         spendBudget(HEAL_VILLAGER_COST);
 
     socket.emit("villager", roomId, villager);
+}
+
+function redeemQuest()
+{
+    let villager = infoSelected;
+    socket.emit("quest", roomId, villager);
 }
 
 function moveVillager()
@@ -904,6 +935,16 @@ function collectLoot(index)
 }
 
 // refresh ////////////////////////////////////////////////////////////////
+function refreshRedeemButton()
+{
+    let holder = false;
+    villagers.forEach((e) => {
+        holder = holder || (e == infoSelected && !e.quest.redeemed)
+    })
+    if(holder)
+        button.redeemQuest.enabled = isCurrentTurn();
+    
+}
 
 function refreshHealButton()
 {
@@ -1273,13 +1314,14 @@ function drawInfoPanel()
     {
         case "villager":
         {
+            const Y_MULTIPLIER = 0.85;
             let villager = infoSelected;
-
-            drawVillager(villager, 3*16, 2.5*16, 2);
+            let questValue = null;
+            drawVillager(villager, 3*16, 2.5*16 * Y_MULTIPLIER, 2);
             ctx.font = '32px Kenney Mini Square';
             ctx.fillStyle = "black";
             ctx.textAlign = "center";
-            ctx.fillText(villager.name, 16*4*SCALE, 16*6*SCALE);
+            ctx.fillText(villager.name, 16*4*SCALE, 16*6*SCALE * Y_MULTIPLIER);
 
             ctx.font = '16px Kenney Mini Square';
 
@@ -1291,9 +1333,28 @@ function drawInfoPanel()
                 "least eff: ",
                 "most fav: ",
                 "least fav: ",
-                "favorite: "
+                "favorite: ",
+                "Quest status: ",
+                "Quest: "
             ];
 
+            switch(villager.quest.criteria){
+                case "happiness": questValue = (role == "sociologist" ? game.totalHappiness : "?")+ " / 100"; break;
+                case "education": questValue = game.facilities.education.level+ " / 5"; break;
+                case "house": questValue = game.facilities.housing.level+ " / 5"; break;
+                case "water": questValue = game.facilities.water.level+ " / 5"; break;
+                case "farm": questValue = game.facilities.farming.level+ " / 5"; break;
+                case "power": questValue = game.facilities.power.level+ " / 2"; break;
+                case "quest": questValue = game.finishedQuest; break;
+                case "money": questValue = game.budget + "$"; break;
+                case "keepFeedFavorite": questValue = villager.favoriteFoodFedDays+ " Days"; break;
+                case "participateBuilding": questValue = villager.participatedBuildings.length+ " / 5"; break;
+                case "nosickAll": questValue = game.nosickAll+ " Days"; break;
+                case "nosick": questValue = villager.nosick + " Days"; break;
+                case "sick": questValue = game.totalSick+ " people"; break;
+                case "notWorking": questValue = villager.notworking+ " Days"; break;
+            }
+            
             let textRight = [
                 villager.sick == true ? "sick" : "healthy",
                 (role == "sociologist" ? villager.happiness : "?") + " / 100",
@@ -1302,17 +1363,42 @@ function drawInfoPanel()
                 villager.leastEffectiveTask,
                 villager.mostFavoriteTask,
                 villager.leastFavoriteTask,
-                villager.favoriteFood
+                villager.favoriteFood,
+                questValue,
             ];  
 
             for(let i = 0; i < textLeft.length; i++)
-            {
-                ctx.textAlign = "left";
-                ctx.fillText(textLeft[i], 16 * SCALE, 16 * (i * 0.75 + 8) * SCALE);
-                ctx.textAlign = "right";
-                ctx.fillText(textRight[i], 16 * 7 * SCALE, 16 * (i * 0.75 + 8) * SCALE);
+            {   
+                ctx.fillStyle = "black";
+                ctx.globalAlpha = 1;
+                if(textLeft[i] == "Quest status: "){
+                    if(villager.quest.redeemed) ctx.globalAlpha = 0.3;
+                    ctx.textAlign = "left";
+                    ctx.fillText(textLeft[i], 16 * SCALE, 16 * (i * 0.75 + 8) * SCALE * Y_MULTIPLIER * 1.03);
+                    ctx.textAlign = "right";
+                    ctx.fillStyle = villager.quest.fulfilled && !villager.quest.redeemed? 'green' : ctx.fillStyle;
+                    ctx.fillText(textRight[i], 16 * 7 * SCALE, 16 * (i * 0.75 + 8) * SCALE * Y_MULTIPLIER * 1.03);   
+                }
+                else if(textLeft[i] == "Quest: ")
+                {
+                    if(villager.quest.redeemed) ctx.globalAlpha = 0.3;
+                    ctx.textAlign = "left";
+                    ctx.fillText(textLeft[i], 16 * SCALE, 16 * (i * 0.75 + 8) * SCALE * Y_MULTIPLIER * 1.025);
+                    ctx.textAlign = "left";
+                    wrapText(ctx, villager.quest.questString,  16 * SCALE, 16 * (i * 0.75*1.1 + 8) * SCALE* Y_MULTIPLIER* 1.025, 16 * 6.4 * SCALE , (0.75 + 8) * SCALE);
+                    // ctx.fillText(textRight[i], 16 * 7 * SCALE, 16 * (i * 0.75 + 8) * SCALE); 
+                }
+                else 
+                {
+                    ctx.textAlign = "left";
+                    ctx.fillText(textLeft[i], 16 * SCALE, 16 * (i * 0.75 + 8) * SCALE * Y_MULTIPLIER);
+                    ctx.textAlign = "right";
+                    ctx.fillText(textRight[i], 16 * 7 * SCALE, 16 * (i * 0.75 + 8) * SCALE * Y_MULTIPLIER);   
+                }     
             }
-
+            
+            ctx.globalAlpha = 1;
+            ctx.fillStyle = "black";
             ctx.textAlign = "right";
             ctx.fillText(villager.currentTask ? villager.currentTask : "(none)", 16 * 7 * SCALE, 16 * 15 * SCALE);
             ctx.textAlign = "left";
@@ -1320,6 +1406,7 @@ function drawInfoPanel()
             
             drawButton(button.assignVillager);
             drawButton(button.healVillager);
+            drawButton(button.redeemQuest);
 
             break;
         }
@@ -1491,6 +1578,25 @@ function drawInfoPanel()
         default:
             break;
     }
+}
+
+function wrapText(context, text, x, y, maxWidth, lineHeight) {
+    var words = text.split(' ');
+    var line = '';
+  
+    for (var n = 0; n < words.length; n++) {
+      var testLine = line + words[n] + ' ';
+      var metrics = context.measureText(testLine);
+      var testWidth = metrics.width;
+      if (testWidth > maxWidth && n > 0) {
+        context.fillText(line, x, y);
+        line = words[n] + ' ';
+        y += lineHeight;
+      } else {
+        line = testLine;
+      }
+    }
+    context.fillText(line, x, y);
 }
 
 function drawActionPanel()

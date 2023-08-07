@@ -8,7 +8,7 @@ const foods = ["cucumber", "tomato", "potato", "carrot"];
 class Villager extends Interactable {
 
     // villagers = array of Villagers
-    constructor(villagers, paths)
+    constructor(villagers, paths, quest)
     {
         super();
 
@@ -35,7 +35,11 @@ class Villager extends Interactable {
         this.mostFavoriteTask = this.generateTask();
         this.leastFavoriteTask = this.generateLeastFavoriteTask();
         this.currentTask = null;
-
+        this.quest = quest.assignQuest();   //Assign quest
+        this.favoriteFoodFedDays = 0;       //Days favorite food being fed
+        this.participatedBuildings = [];    //Buildings has worked 
+        this.nosick = 0;                    //has not been sick for x days straight
+        this.notworking = 0;                //has not been working for x days total
         this.fed = false;
     }
 

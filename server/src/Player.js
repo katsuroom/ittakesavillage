@@ -5,6 +5,7 @@ class Player {
         this.id = id;
 
         this.role = "";
+        this.lootAmount = 2;
         this.ready = false;
     }
 };
