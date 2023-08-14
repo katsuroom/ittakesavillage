@@ -11,6 +11,7 @@ import { NotificationSeason } from "../src/NotificationSeason.js";
 import { NotificationEvent } from "../src/NotificationEvent.js";
 import { NotificationArrival } from "../src/NotificationArrival.js";
 import { NotificationFlee } from "../src/NotificationFlee.js";
+import { NotificationQuest } from "../src/NotificationQuest.js";
 
 
 // game variables ////////////////////////////////////////////////////////////////
@@ -200,9 +201,6 @@ socket.on("event", (_event, _nextEvent) => {
 
     event = _event;
     nextEvent = _nextEvent;
-
-    console.log(event);
-    console.log(nextEvent);
 });
 
 socket.on("budget", (_budget) => {
@@ -237,7 +235,6 @@ socket.on("villagers", (_villagers) => {
             if(villagers.find(villager => villager.name == _villagers[i].name) == null)
             {
                 newVillager = _villagers[i];
-                console.log("new villager: " + newVillager.name);
                 notifications.push(new NotificationArrival(newVillager));
                 break;
             }
@@ -331,6 +328,11 @@ socket.on("heal_chances", (_healChances) => {
 
 socket.on("villager_flee", (_villager) => {
     notifications.push(new NotificationFlee(_villager));
+    triggerNotifications();
+});
+
+socket.on("quest_complete", (_villager) => {
+    notifications.push(new NotificationQuest(_villager));
     triggerNotifications();
 });
 
@@ -461,7 +463,7 @@ function onClick(e)
 
         if(!assigningVillager)
         {
-            if(mouseInteract(factory))
+            if(!heldItemStack && mouseInteract(factory))
             {
                 infoSelected = factory;
                 button.collectBricks.enabled = factory.bricks > 0;
@@ -944,6 +946,9 @@ function feedVillager(villager)
     else
         villager.hunger = Math.min(villager.hunger + 2, 5);
 
+    if(heldItemStack.item.id == "apple")
+        villager.happiness += 20;
+
     socket.emit("villager", roomId, villager);
 
     useItem(heldItemStack);
@@ -1287,7 +1292,6 @@ function drawVillagers()
             else
                 ctx.fillStyle = "white";
 
-
             ctx.fillRect(
                 obj.interactBox.x * SCALE,
                 obj.interactBox.y * SCALE,
@@ -1428,7 +1432,6 @@ function drawTrees()
         else
             ctx.drawImage(img.plant, obj.interactBox.x * SCALE, obj.interactBox.y * SCALE, 16 * SCALE, 16 * SCALE);
 
-        
 
         if(getActiveWindow() == "main" && mouseInteract(obj))
             setLabel(obj);
@@ -1478,7 +1481,7 @@ function drawInfoPanel()
             ctx.fillText(villager.name, 16*4*SCALE, 16*6*SCALE);
 
             ctx.beginPath();
-            ctx.roundRect(16*0.5*SCALE, 16*7.75*SCALE, 16*7*SCALE, 16*8.5*SCALE, 4*SCALE);
+            ctx.roundRect(16*0.5*SCALE, 16*7.75*SCALE, 16*7*SCALE, 16*9.5*SCALE, 4*SCALE);
             ctx.fill();
 
             ctx.font = '16px Kenney Mini Square';
@@ -1519,10 +1522,17 @@ function drawInfoPanel()
 
             ctx.textAlign = "right";
             ctx.fillStyle = getTextColor(villager.currentTask, "gray");
-            ctx.fillText(villager.currentTask ? villager.currentTask : "(none)", 16 * 7 * SCALE, 16 * 15 * SCALE);
+            ctx.fillText(villager.currentTask ? villager.currentTask : "(none)", 16 * 7 * SCALE, 16*14.5*SCALE);
             ctx.textAlign = "left";
             ctx.fillStyle = "white";
-            ctx.fillText("working:", 16 * SCALE, 16 * 15 * SCALE);
+            ctx.fillText("working:", 16 * SCALE, 16*14.5*SCALE);
+
+            if(villager.quest)
+            {
+                ctx.fillText("quest:", 16 * SCALE, 16*15.75*SCALE);
+                ctx.fillStyle = "goldenrod";
+                ctx.fillText(villager.quest.description, 16 * SCALE, 16*16.5*SCALE);
+            }
             
             drawButton(button.assignVillager);
             drawButton(button.healVillager);

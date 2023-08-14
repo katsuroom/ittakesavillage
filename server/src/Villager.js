@@ -5,6 +5,8 @@ const Interactable = require("./Interactable.js");
 const facilities = ["water", "farming", "education", "housing"];
 const foods = ["cucumber", "tomato", "potato", "carrot"];
 
+const QUESTS = require("../global.js");
+
 class Villager extends Interactable {
 
     // villagers = array of Villagers
@@ -35,6 +37,8 @@ class Villager extends Interactable {
         this.mostFavoriteTask = this.generateTask();
         this.leastFavoriteTask = this.generateLeastFavoriteTask();
         this.currentTask = null;
+
+        this.quest = null;
 
         this.fed = false;
     }

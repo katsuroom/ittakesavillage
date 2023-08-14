@@ -499,9 +499,6 @@ class Game {
         this.daysUntilNextSeason--;
 
         // this.updateEvent();
-
-        // change player turn
-        this.currentTurn = (this.currentTurn + 1) % this.players.length;
     }
 };
 

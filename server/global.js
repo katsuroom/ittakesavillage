@@ -1,11 +1,12 @@
 const Seed = require("./src/Seed.js");
 const Food = require("./src/Food.js");
 const Material = require("./src/Material.js");
+const Quest = require("./src/Quest.js");
 const Season = require("./src/Season.js");
+const Event = require("./src/Event.js");
 const {Option, RandomTable} = require("./src/RandomTable.js");
 const ShopItem = require("./src/ShopItem.js");
 
-const Event = require("./src/Event.js");
 
 const VILLAGER_COUNT = 12;
 const FARMLAND_COUNT = 32;
@@ -34,13 +35,25 @@ const ITEMS = {
 
     wood: new Material("wood", "wood", 3, 6),
     brick: new Material("brick", "brick", 2, 6),
-    steel: new Material("steel", "steel", 5, 10),
+    steel: new Material("steel", "steel", 500, 10),
 };
 
 ITEMS.cucumberSeed = new Seed("cucumber seed", "cucumber_seed", ITEMS.cucumber);
 ITEMS.tomatoSeed = new Seed("tomato seed", "tomato_seed", ITEMS.tomato);
 ITEMS.potatoSeed = new Seed("potato seed", "potato_seed", ITEMS.potato);
 ITEMS.carrotSeed = new Seed("carrot seed", "carrot_seed", ITEMS.carrot);
+
+const QUESTS = [
+    new Quest("happiness", 70, "happiness = 70"),
+    new Quest("happiness", 80, "happiness = 80"),
+    new Quest("happiness", 90, "happiness = 90"),
+];
+
+["water", "farming", "education", "housing"].forEach(facility => {
+    QUESTS.push(new Quest(facility, 2, facility + " level = 2"));
+    QUESTS.push(new Quest(facility, 3, facility + " level = 3"));
+    QUESTS.push(new Quest(facility, 4, facility + " level = 4"));
+});
 
 const SHOP = {
     "npc_doctor":       new ShopItem("doctor npc", "npc_doctor", 400, 1),
@@ -161,6 +174,7 @@ module.exports = {
     TREE_COUNT,
     TREE_GROWTH_TIME,
     ITEMS,
+    QUESTS,
     SHOP,
     SEASONS,
     EVENT_DURATION_MIN,

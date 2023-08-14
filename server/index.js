@@ -156,6 +156,18 @@ function startGame(roomId)
     game.initFarmland();
     game.initTrees();
 
+    // assign villager quests
+    game.villagers.forEach(villager => {
+
+        let index = Math.floor(Math.random() * global.QUESTS.length);
+        let quest = global.QUESTS[index];
+
+        if(quest.type != "happiness")
+            global.QUESTS.splice(index, 1);
+
+        villager.quest = quest;
+    });
+
 
     // events
     game.event = global.EVENTS["cloudy_day"];
@@ -523,6 +535,38 @@ function getNextEvent(game)
     return event;
 }
 
+function checkQuest(game)
+{
+    game.villagers.forEach(villager => {
+        if(villager.quest)
+        {
+            let completed = false;
+
+            switch(villager.quest.type)
+            {
+                case "happiness":
+                    completed = villager.happiness >= villager.quest.targetValue;
+                    break;
+                case "water":
+                case "farming":
+                case "education":
+                case "housing":
+                    completed = game.facilities[villager.quest.type].level >= villager.quest.targetValue;
+                    break;
+                default:
+                    break;
+            }
+
+            if(completed)
+            {
+                game.players.forEach(player => io.sockets.to(player.id).emit("quest_complete", villager));
+                villager.quest = null;
+                game.players.forEach(player => io.sockets.to(player.id).emit("villager", villager));
+            }
+        }
+    });
+}
+
 
 // calculations ////////////////////////////////////////////////////////////////
 
@@ -597,6 +641,8 @@ io.on("connection", (socket) => {
             {
                 game.villagers[i] = _villager;
 
+                checkQuest(game);
+
                 game.players.forEach(player => {
                     io.sockets.to(player.id).emit("villager", game.villagers[i]);
                 });
@@ -625,6 +671,12 @@ io.on("connection", (socket) => {
         });
 
         game.nextDay();
+
+        // check for happiness quest completion
+        checkQuest(game);
+
+        // change player turn
+        game.currentTurn = (game.currentTurn + 1) % game.players.length;
 
         updateEvent(game);
 
@@ -706,7 +758,7 @@ io.on("connection", (socket) => {
             io.sockets.to(player.id).emit("facilities", game.facilities);
             io.sockets.to(player.id).emit("factory", game.factory);
             io.sockets.to(player.id).emit("farm", game.farm);
-            io.sockets.to(player.id).emit("trees", game.trees, game.rolesPresent["scientist"]);
+            io.sockets.to(player.id).emit("trees", game.trees, game.rolesPresent["scientist"] || game.npcPresent["scientist"]);
 
             io.sockets.to(player.id).emit("change_turn", game.currentTurn);
         });
@@ -762,6 +814,8 @@ io.on("connection", (socket) => {
         let game = games[_roomId];
         let facility = game.facilities[_facility.label];
         game.upgradeFacility(facility);
+
+        checkQuest(game);
 
         game.players.forEach(player => {
             io.sockets.to(player.id).emit("facility", facility);
