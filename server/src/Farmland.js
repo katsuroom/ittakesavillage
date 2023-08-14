@@ -9,6 +9,8 @@ class Farmland extends Interactable {
         this.crop = null;
         this.daysLeft = 0;
         this.locked = locked;
+
+        this.amount = 0;
         
         this.infoType = "farmland";
     }

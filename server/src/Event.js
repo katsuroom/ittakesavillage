@@ -7,6 +7,13 @@ class Event {
         
         this.duration = 0;
     }
+
+    clone()
+    {
+        return new Event(this.name, this.id, this.description);
+    }
+
+    
 }
 
 module.exports = Event;

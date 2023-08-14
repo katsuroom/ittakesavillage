@@ -152,20 +152,23 @@ function startGame(roomId)
     game.initVillagers();
     game.initFacilities();
     game.initFactory();
-    game.initInventory();
+    game.initBudget();
     game.initFarmland();
     game.initTrees();
 
+
+    // events
     game.event = global.EVENTS["cloudy_day"];
     game.event.duration = 3;
 
-    game.nextEvent = game.getNextEvent();
-    game.nextEvent.duration = Math.floor(Math.random() * (global.EVENT_DURATION_MAX - global.EVENT_DURATION_MIN + 1))
-        + global.EVENT_DURATION_MIN;
+    game.nextEvent = getNextEvent(game);
 
     game.started = true;
 
     game.players.forEach(player => {
+
+        player.connected = true;
+
         io.sockets.to(player.id).emit("start_game");
         io.sockets.to(player.id).emit("day", game.day, game.daysUntilNextSeason);
         io.sockets.to(player.id).emit("season", game.season, game.nextSeason);
@@ -174,62 +177,350 @@ function startGame(roomId)
         io.sockets.to(player.id).emit("paths", game.paths);
         io.sockets.to(player.id).emit("facilities", game.facilities);
         io.sockets.to(player.id).emit("factory", game.factory);
-        io.sockets.to(player.id).emit("inventory", game.inventory);
+
+        let inventory = game.initInventory();
+        inventory.forEach(item => io.sockets.to(player.id).emit("give_item", item, 1));
+
         io.sockets.to(player.id).emit("farm", game.farm);
         io.sockets.to(player.id).emit("trees", game.trees, game.rolesPresent["scientist"]);
         io.sockets.to(player.id).emit("event", game.event, game.nextEvent);
         io.sockets.to(player.id).emit("change_turn", game.currentTurn);
+        io.sockets.to(player.id).emit("refresh_npcs", game.npcPresent);
+
+        // shop
+        let shop = [];
+        for (const [role, present] of Object.entries(game.rolesPresent)) {
+            if(role != "chief" && !present)
+                shop.push(global.SHOP["npc_" + role]);
+        }
+        if(player.role == "farmer")
+        {
+            shop.push(global.SHOP["cucumber_seed"]);
+            shop.push(global.SHOP["tomato_seed"]);
+            shop.push(global.SHOP["potato_seed"]);
+            shop.push(global.SHOP["carrot_seed"]);
+        }
+        if(player.role == "engineer")
+            shop.push(global.SHOP["steel"]);
+
+        io.sockets.to(player.id).emit("shop", shop);
     });
 
     io.sockets.to(game.players[game.currentTurn].id).emit("daily_loot", generateLoot(), global.LOOT_AMOUNT);
 }
 
+function disconnectLobby(game, index)   // index of player in game.players
+{
+    // free role
+    if(game.players[index].role != "") game.rolesPresent[game.players[index].role] = false;
+
+    game.players.splice(index, 1);
+
+    // if last player disconnected, remove game
+    if(game.players.length == 0)
+        delete games[game.roomId];
+    else
+    {
+        for(let i = 0; i < game.players.length; i++)
+        {
+            io.sockets.to(game.players[i].id).emit("refresh_roles", game.rolesPresent);
+            io.sockets.to(game.players[i].id).emit("refresh_lobby", game.players, game.roomId);
+        }
+    }
+}
+
+function disconnectGame(game, index)
+{
+    game.players[index].connected = false;
+
+    // remove game if every player is disconnected
+    for(let i = 0; i < game.players.length; i++)
+    {
+        if(game.players[i].connected) return;
+    }
+
+    delete games[game.roomId];
+}
+
+
+// updates
+
+function removeVillagerFromFacility(villager, game)
+{
+    if(villager.currentTask)
+    {
+        let oldFacility = game.facilities[villager.currentTask];
+
+        for(let i = 0; i < oldFacility.assignedVillagers.length; i++)
+        {
+            if(oldFacility.assignedVillagers[i] == villager.name)
+            {
+                oldFacility.assignedVillagers.splice(i, 1);
+                break;
+            }
+        }
+    }
+}
+
+function villagerSick(villager)
+{
+    villager.sick = true;
+    villager.labelColor = "rgb(0,191,0)";
+}
+
+function villagerHeal(villager)
+{
+    villager.sick = false;
+    villager.labelColor = "white";
+}
+
+function checkDeathConditions(game) // return bool
+{
+    let totalHappiness = 0;
+    game.villagers.forEach(villager => totalHappiness += villager.happiness);
+
+    let avgHappiness = totalHappiness / game.villagers.length;
+
+    return avgHappiness <= global.DEATH_THRESHOLD;
+}
+
 function generateLoot()     // returns array of loot items
 {
     let loot = [];
-    for(let i = 0; i < global.LOOT_AMOUNT * 2; i++)
+
+    let tableAmount = Math.floor(1 + global.LOOT_AMOUNT * 1.5);
+
+    for(let i = 0; i < tableAmount; i++)
         loot.push(global.DAILY_LOOT.getItem());
 
     return loot;
 }
 
-function disconnect(socket)
+function eventStart(game, event)
 {
-    console.log("disconnected: " + socket.id);
-
-    // remove player from game
-    let found = false;
-    for (const [id, game] of Object.entries(games))
+    switch(event.id)
     {
-        for(let j = 0; j < games[id].players.length; j++)
-        {
-            if(socket.id == games[id].players[j].id)
+        case "harvest":
             {
-                // free role
-                if(games[id].players[j].role != "") games[id].rolesPresent[games[id].players[j].role] = false;
+                let numCrops = Math.floor(7 - game.players.length * 0.5);
+                let crops = [global.ITEMS.cucumber, global.ITEMS.tomato, global.ITEMS.potato, global.ITEMS.carrot];
 
-                games[id].players.splice(j, 1);
-
-                // if last player disconnected, remove game
-                if(games[id].players.length == 0)
-                    delete games[id];
-
-                else
-                {
-                    for(j = 0; j < games[id].players.length; j++)
+                game.players.forEach(player => {
+                    for(let i = 0; i < numCrops; i++)
                     {
-                        io.sockets.to(games[id].players[j].id).emit("refresh_roles", games[id].rolesPresent);
-                        io.sockets.to(games[id].players[j].id).emit("refresh_lobby", games[id].players, games[id].roomId);
+                        let item = crops[Math.floor(Math.random() * crops.length)];
+                        io.sockets.to(player.id).emit("give_item", item, 1);
                     }
-                }
-
-                found = true;
+                });
+                
                 break;
             }
+        case "rainy_day":
+            {
+                game.players.forEach(player => {
+                    io.sockets.to(player.id).emit("set_variable", "cropGrowthModifier", -1);
+                });
+                break;
+            }
+        case "free_cake":
+            {
+                let villager = game.createVillager();
+                game.sortVillagers();
+                break;
+            }
+        case "black_friday":
+            {
+                game.players.forEach(player => {
+                    io.sockets.to(player.id).emit("set_variable", "priceMultiplier", 0.5);
+                });
+                break;
+            }
+        case "summer_day":
+            {
+                global.SICK_CHANCE = 0;
+                game.villagers.forEach(villager => villagerHeal(villager));
+                break;
+            }
+        case "drought":
+            {
+                let droughtChance = 0;
+                switch(game.facilities["water"].level)
+                {
+                    case 1: droughtChance = 0.6; break;
+                    case 2: droughtChance = 0.45; break;
+                    case 3: droughtChance = 0.3; break;
+                    case 4: droughtChance = 0.15; break;
+                    case 5: droughtChance = 0; break;
+                    default: break;
+                }
+
+                game.farm.forEach(farmland => {
+                    if(Math.random() < droughtChance)
+                    {
+                        farmland.crop = null;
+                        farmland.label = "empty";
+                    }
+                });
+
+                break;
+            }
+        case "disease":
+            {
+                let diseaseChance = 0;
+                switch(game.facilities["water"].level)
+                {
+                    case 1: diseaseChance = 0.2; break;
+                    case 2: diseaseChance = 0.15; break;
+                    case 3: diseaseChance = 0.1; break;
+                    case 4: diseaseChance = 0.05; break;
+                    case 5: diseaseChance = 0; break;
+                    default: break;
+                }
+
+                game.villagers.forEach(villager => {
+                    if(Math.random() < diseaseChance)
+                        villagerSick(villager);
+                });
+
+                break;
+            }
+        case "flood":
+            {
+                Object.values(game.facilities).forEach(facility => {
+                    facility.progress -= global.FLOOD_DAMAGE;
+                    if(facility.progress < 0)
+                        facility.progress = 0;
+                });
+            }
+        default: break;
+    }
+}
+
+function eventUpdate(game, event)
+{
+    // console.log("update");
+}
+
+function eventEnd(game, event)
+{
+    switch(event.id)
+    {
+        case "rainy_day":
+            {
+                game.players.forEach(player => {
+                    io.sockets.to(player.id).emit("set_variable", "cropGrowthModifier", 0);
+                });
+                break;
+            }
+        case "black_friday":
+            {
+                game.players.forEach(player => {
+                    io.sockets.to(player.id).emit("set_variable", "priceMultiplier", 1);
+                });
+                break;
+            }
+        case "summer_day":
+            {
+                global.SICK_CHANCE = 0.03;
+                break;
+            }
+        case "death":
+            {
+                if(checkDeathConditions(game))
+                {
+                    let index = Math.floor(Math.random() * game.villagers.length);
+                    let villager = game.villagers[index];
+                    removeVillagerFromFacility(villager, game);
+
+                    game.villagers.splice(index, 1);
+
+                    game.players.forEach(player => {
+                        io.sockets.to(player.id).emit("villager_flee", villager);
+                    });
+                }
+                break;
+            }
+        default: break;
+    }
+}
+
+function updateEvent(game)
+{
+    game.event.duration--;
+
+    if(game.event.duration == 0)
+    {
+        eventEnd(game, game.event);
+
+        // switch to next event
+        
+        game.event = game.nextEvent;
+        eventStart(game, game.event);
+
+        // set next event
+        game.nextEvent = getNextEvent(game);
+    }
+    else
+        eventUpdate(game, game.event);
+}
+
+function getNextEvent(game)
+{
+    // calculate season for next event
+    let dayCount = game.day + game.event.duration;
+
+    if(dayCount > 60) return null;
+
+    let season = "";
+
+    for(let i = 0; i < global.SEASONS.length; i++)
+    {
+        dayCount -= global.SEASONS[i].days;
+        if(dayCount <= 0)
+        {
+            season = global.SEASONS[i].name;
+            break;
+        }
+    }
+
+    // get event from event table
+    let event = null;
+
+    while(true)
+    {
+        switch(season)
+        {
+            case "spring":
+                event = global.EVENTS_SPRING.getItem();
+                break;
+            case "summer":
+                event = global.EVENTS_SUMMER.getItem();
+                break;
+            case "autumn":
+                event = global.EVENTS_AUTUMN.getItem();
+                break;
+            case "winter":
+                event = global.EVENTS_WINTER.getItem();
+                break;
+            default:
+                break;
         }
 
-        if(found) break;
+        if(event.id != "death")
+            break;
+        else
+        {
+            // prevents consecutive death events
+            if(game.event.id != "death" && checkDeathConditions(game))
+                break;
+        }
     }
+
+    
+
+    event.duration = Math.floor(Math.random() * (global.EVENT_DURATION_MAX - global.EVENT_DURATION_MIN + 1))
+        + global.EVENT_DURATION_MIN;
+    return event;
 }
 
 
@@ -266,7 +557,8 @@ io.on("connection", (socket) => {
         if(_oldFacility)
             game.facilities[_oldFacility.label] = _oldFacility;
 
-        game.facilities[_newFacility.label] = _newFacility;
+        if(_newFacility)
+            game.facilities[_newFacility.label] = _newFacility;
 
         game.players.forEach(player => {
             io.sockets.to(player.id).emit("villagers", game.villagers);
@@ -325,7 +617,16 @@ io.on("connection", (socket) => {
 
     socket.on("end_turn", (_roomId) => {
         let game = games[_roomId];
+
+        // track villagers that are already sick
+        let sickVillagers = [];
+        game.villagers.forEach(villager => {
+            if(villager.sick) sickVillagers.push(villager);
+        });
+
         game.nextDay();
+
+        updateEvent(game);
 
         let changeSeason = false;
         if(game.daysUntilNextSeason == 0)
@@ -349,19 +650,63 @@ io.on("connection", (socket) => {
             }
         }
 
+        // calculate capacity of sick villagers
+        let sickCapacity = 0;
+        switch(game.facilities["housing"].level)
+        {
+            case 1: sickCapacity = 3; break;
+            case 2: sickCapacity = 4; break;
+            case 3: sickCapacity = 5; break;
+            case 4: sickCapacity = 7; break;
+            case 5: sickCapacity = 9; break;
+            default: break;
+        }
+
+        // check villagers with happiness <= 0, or too many are sick
+        let fleeingVillagers = [];
+        for(let i = game.villagers.length - 1; i >= 0; i--)
+        {
+            let villager = game.villagers[i];
+
+            if(villager.sick)
+            {
+                let locate = sickVillagers.find(v => v.name == villager.name);
+
+                if(!locate && sickVillagers.length < sickCapacity)
+                    sickVillagers.push(villager);
+                else if(!locate)
+                {
+                    removeVillagerFromFacility(villager, game);
+                    game.villagers.splice(i, 1);
+                    fleeingVillagers.push(villager);
+                }
+            }
+
+            if(villager.happiness <= 0)
+            {
+                removeVillagerFromFacility(villager, game);
+                game.villagers.splice(i, 1);
+                fleeingVillagers.push(villager);
+            }
+        }
+
         game.players.forEach(player => {
             io.sockets.to(player.id).emit("day", game.day, game.daysUntilNextSeason);
 
+            fleeingVillagers.forEach(villager => {
+                io.sockets.to(player.id).emit("villager_flee", villager);
+            });
+
             if(changeSeason)
                 io.sockets.to(player.id).emit("season", game.season, game.nextSeason);
+
+            io.sockets.to(player.id).emit("event", game.event, game.nextEvent);
 
             io.sockets.to(player.id).emit("villagers", game.villagers);
             io.sockets.to(player.id).emit("facilities", game.facilities);
             io.sockets.to(player.id).emit("factory", game.factory);
             io.sockets.to(player.id).emit("farm", game.farm);
             io.sockets.to(player.id).emit("trees", game.trees, game.rolesPresent["scientist"]);
-
-            io.sockets.to(player.id).emit("event", game.event, game.nextEvent);
 
             io.sockets.to(player.id).emit("change_turn", game.currentTurn);
         });
@@ -420,10 +765,91 @@ io.on("connection", (socket) => {
 
         game.players.forEach(player => {
             io.sockets.to(player.id).emit("facility", facility);
+
+            if(facility.label == "water" && facility.level < 5)
+                io.sockets.to(player.id).emit("farm", game.farm);
+
+            if(facility.label == "farming")
+                io.sockets.to(player.id).emit("farm", game.farm);
         });
     });
 
-    socket.on("disconnect", () => disconnect(socket));
+    socket.on("purchase", (_roomId, _socketId, _shopItem) => {
+        let game = games[_roomId];
+
+        switch(_shopItem.id)
+        {
+            case "npc_doctor":
+            case "npc_scientist":
+            case "npc_sociologist":
+            case "npc_farmer":
+            case "npc_engineer":
+
+                if(_shopItem.id == "npc_farmer")
+                {
+                    game.players.forEach(player => io.sockets.to(player.id).emit("add_shop_item", global.SHOP["cucumber_seed"]));
+                    game.players.forEach(player => io.sockets.to(player.id).emit("add_shop_item", global.SHOP["tomato_seed"]));
+                    game.players.forEach(player => io.sockets.to(player.id).emit("add_shop_item", global.SHOP["potato_seed"]));
+                    game.players.forEach(player => io.sockets.to(player.id).emit("add_shop_item", global.SHOP["carrot_seed"]));
+                }
+
+                if(_shopItem.id == "npc_engineer")
+                    game.players.forEach(player => io.sockets.to(player.id).emit("add_shop_item", global.SHOP["steel"]));
+
+                game.npcPresent[_shopItem.id.substring(4)] = true;
+                game.players.forEach(player => io.sockets.to(player.id).emit("purchase_npc", game.npcPresent));
+                break;
+
+            case "cucumber_seed":
+                socket.emit("give_item", global.ITEMS.cucumberSeed, 1);
+                break;
+            case "tomato_seed":
+                socket.emit("give_item", global.ITEMS.tomatoSeed, 1);
+                break;
+            case "potato_seed":
+                socket.emit("give_item", global.ITEMS.potatoSeed, 1);
+                break;
+            case "carrot_seed":
+                socket.emit("give_item", global.ITEMS.carrotSeed, 1);
+                break;
+            case "steel":
+                socket.emit("give_item", global.ITEMS.steel, 1);
+                break;
+            default:
+                break;
+        }
+    });
+
+    socket.on("disconnect", () => {
+        console.log("disconnected: " + socket.id);
+        
+        let found = false;
+        for(const [id, game] of Object.entries(games))
+        {
+            for(let j = 0; j < games[id].players.length; j++)
+            {
+                if(socket.id == games[id].players[j].id)
+                {
+                    if(games[id].started)
+                    {
+                        // game has already started
+                        disconnectGame(games[id], j);
+                    }
+                    else
+                    {
+                        // game is still in lobby
+                        disconnectLobby(games[id], j);
+                    }
+
+                    break;
+                }
+            }
+
+            if(found) break;
+        }
+
+        
+    });
 
     socket.on("server_info", () => {
         socket.emit("server_info", games);

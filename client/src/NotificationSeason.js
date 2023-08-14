@@ -1,17 +1,15 @@
 import { Notification } from "./Notification.js";
 
-export class HarvestNotif extends Notification {
+export class NotificationSeason extends Notification {
 
-    // string, string, int
-    constructor(playerName, food, amount)
+    constructor(season)
     {
-        let text = playerName + " received " + food + " x" + amount;
-        super(text);
+        let text = "the season is now " + season;
+        super(text, 3000);
     }
 
     draw(ctx, scale)
     {
-        // super.draw(ctx);
         ctx.font = '24px Kenney Mini Square';
         ctx.fillStyle = "white";
         ctx.textBaseline = "middle";

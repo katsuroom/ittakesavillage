@@ -25,6 +25,14 @@ class Game {
             "engineer": false
         };
 
+        this.npcPresent = {
+            "doctor": false,
+            "scientist": false,
+            "sociologist": false,
+            "farmer": false,
+            "engineer": false
+        };
+
 
         // game variables
 
@@ -38,7 +46,7 @@ class Game {
         this.event = null;
         this.nextEvent = null;
 
-        this.budget = 1600;
+        this.budget = 0;
 
         this.villagers = [];
         this.paths = [...Array(22)].map(e => Array(26).fill('-'));
@@ -55,8 +63,6 @@ class Game {
             "housing": new Facility(50),
             "power": new Facility(20)
         };
-
-        this.inventory = [];
     }
 
     initPaths()
@@ -104,12 +110,18 @@ class Game {
         }
     }
 
+    createVillager()    // return villager
+    {
+        let villager = new Villager(this.villagers, this.paths);
+        this.villagers.push(villager);
+        return villager;
+    }
+
     initVillagers()
     {
         for(let i = 0; i < global.VILLAGER_COUNT; i++)
         {
-            let villager = new Villager(this.villagers, this.paths);
-            this.villagers.push(villager);
+            this.createVillager();
         }
 
         this.sortVillagers();
@@ -157,20 +169,66 @@ class Game {
         this.factory.interactBox.height = 16*3;
     }
 
-    initInventory()
+    initBudget()
     {
-        this.inventory.push(new ItemStack(global.ITEMS.cucumberSeed, 4));
-        this.inventory.push(new ItemStack(global.ITEMS.tomatoSeed, 4));
-        this.inventory.push(new ItemStack(global.ITEMS.potatoSeed, 4));
-        this.inventory.push(new ItemStack(global.ITEMS.carrotSeed, 4));
-        // this.inventory.push(new ItemStack(global.ITEMS.cucumber, 4));
-        // this.inventory.push(new ItemStack(global.ITEMS.tomato, 4));
-        // this.inventory.push(new ItemStack(global.ITEMS.potato, 4));
-        // this.inventory.push(new ItemStack(global.ITEMS.carrot, 4));
-        // this.inventory.push(new ItemStack(global.ITEMS.apple, 4));
-        this.inventory.push(new ItemStack(global.ITEMS.wood, 4));
-        this.inventory.push(new ItemStack(global.ITEMS.brick, 4));
-        this.inventory.push(new ItemStack(global.ITEMS.steel, 4));
+        switch(this.players.length)
+        {
+            case 1: this.budget = 2000; break;
+            case 2: this.budget = 1600; break;
+            case 3: this.budget = 1200; break;
+            case 4: this.budget = 800; break;
+            case 5: this.budget = 400; break;
+            case 6: this.budget = 300; break;
+            default: break;
+        }
+    }
+
+    initInventory() // return array of items
+    {
+        let startingItems = [];
+
+        let seeds = [global.ITEMS.cucumberSeed, global.ITEMS.tomatoSeed, global.ITEMS.potatoSeed, global.ITEMS.carrotSeed];
+        let crops = [global.ITEMS.cucumber, global.ITEMS.tomato, global.ITEMS.potato, global.ITEMS.carrot];
+
+        let numSeeds = 0;
+        let numCrops = 0;
+
+        switch(this.players.length)
+        {
+            case 1:
+            case 2: numSeeds = 6; numCrops = 4; break;
+            case 3: numSeeds = 4; numCrops = 4; break;
+            case 4: numSeeds = 4; numCrops = 2; break;
+            case 5: numSeeds = 3; numCrops = 2; break;
+            case 6: numSeeds = 3; break;
+            default: break;
+        }
+
+        for(let i = 0; i < numSeeds; i++)
+        {
+            let item = seeds[Math.floor(Math.random() * seeds.length)];
+            startingItems.push(item);
+        }
+
+        for(let i = 0; i < numCrops; i++)
+        {
+            let item = crops[Math.floor(Math.random() * crops.length)];
+            startingItems.push(item);
+        }
+
+        startingItems.push(global.ITEMS.steel);
+        startingItems.push(global.ITEMS.steel);
+        startingItems.push(global.ITEMS.steel);
+        startingItems.push(global.ITEMS.steel);
+        startingItems.push(global.ITEMS.brick);
+        startingItems.push(global.ITEMS.brick);
+        startingItems.push(global.ITEMS.brick);
+        startingItems.push(global.ITEMS.brick);
+        // this.inventory.push(new ItemStack(global.ITEMS.wood, 4));
+        // this.inventory.push(new ItemStack(global.ITEMS.brick, 4));
+        // this.inventory.push(new ItemStack(global.ITEMS.steel, 4));
+
+        return startingItems;
     }
 
     initFarmland()
@@ -188,8 +246,11 @@ class Game {
             }
             farmland.label = "empty";
             farmland.id = i;
+            farmland.amount = 2;
             this.farm.push(farmland);
         }
+
+        this.updateFarmlandAmount();
     }
 
     initTrees()
@@ -200,10 +261,6 @@ class Game {
 
             tree.id = i;
 
-            if(this.rolesPresent["scientist"])
-                tree.label = "tree";
-            else
-                tree.label = "?";
             this.trees.push(tree);
         }
     }
@@ -257,6 +314,16 @@ class Game {
             default:
                 break;
         }
+
+        if(facility.label == "water" && facility.level < 5)
+        {
+            // unlock 8 farmland
+            for(let i = 0; i < 8; i++)
+                this.farm[(facility.level - 1) * 8 + i].locked = false;
+        }
+
+        if(facility.label == "farming")
+            this.updateFarmlandAmount();
     }
 
     // calculations
@@ -309,14 +376,31 @@ class Game {
                     break;
             }
 
+            let totalProgress = 0;
+
             if(villager.currentTask == villager.mostEffectiveTask)
-                this.addProgress(this.facilities[villager.currentTask], baseProgress * mostEffectiveMult);
+                totalProgress = baseProgress * mostEffectiveMult;
 
             else if(villager.currentTask == villager.leastEffectiveTask)
-                this.addProgress(this.facilities[villager.currentTask], baseProgress * leastEffectiveMult);
+                totalProgress = baseProgress * leastEffectiveMult;
 
             else
-                this.addProgress(this.facilities[villager.currentTask], baseProgress);
+                totalProgress = baseProgress;
+
+            if(this.event.id == "heat_stroke")
+            {
+                switch(this.facilities["education"].level)
+                {
+                    case 1: totalProgress *= 0.75; break;
+                    case 2: totalProgress *= 0.8; break;
+                    case 3: totalProgress *= 0.85; break;
+                    case 4: totalProgress *= 0.9; break;
+                    case 5: totalProgress *= 1; break;
+                    default: break;
+                }
+            }
+            
+            this.addProgress(this.facilities[villager.currentTask], totalProgress);
 
         });
     }
@@ -348,6 +432,21 @@ class Game {
         });
     }
 
+    updateFarmlandAmount()
+    {
+        this.farm.forEach(farmland => {
+            switch(this.facilities["farming"].level)
+            {
+                case 1: farmland.amount = 2; break;
+                case 2: farmland.amount = 3; break;
+                case 3: farmland.amount = 4; break;
+                case 4: farmland.amount = 5; break;
+                case 5: farmland.amount = 8; break;
+                default: break;
+            }
+        });
+    }
+
     updateVillagers()
     {
         this.villagers.forEach(villager => {
@@ -363,77 +462,29 @@ class Game {
                     villager.happiness -= 10;
             }
 
+            // update happiness based on sickness
+            if(villager.sick)
+                villager.happiness -= 10;
+
+            // update happiness based on task
+            if(villager.currentTask == villager.mostFavoriteTask)
+                villager.happiness += 2;
+            else if(villager.currentTask == villager.leastFavoriteTask)
+                villager.happiness -= 5;
+
             // subtract hunger
             if(villager.hunger > 0) villager.hunger--;
 
             villager.fed = false;
 
             // chance of sickness
-            if(Math.random() < global.SICK_CHANCE)
+            if(villager.currentTask != "power" && Math.random() < global.SICK_CHANCE)
             {
                 villager.sick = true;
                 villager.labelColor = "rgb(0,191,0)";
             }
 
         });
-    }
-
-    updateEvent()
-    {
-        this.event.duration--;
-
-        if(this.event.duration == 0)
-        {
-            // switch to next event
-            this.event = this.nextEvent;
-
-            // set next event
-            this.nextEvent = this.getNextEvent();
-        }
-    }
-
-    getNextEvent()
-    {
-        // calculate season for next event
-        let dayCount = this.day + this.event.duration;
-
-        if(dayCount > 60) return null;
-
-        let season = "";
-
-        for(let i = 0; i < global.SEASONS.length; i++)
-        {
-            dayCount -= global.SEASONS[i].days;
-            if(dayCount <= 0)
-            {
-                season = global.SEASONS[i].name;
-                break;
-            }
-        }
-
-        // get event from event table
-        let event = null;
-
-        switch(season)
-        {
-            case "spring":
-                event = global.EVENTS_SPRING.getItem();
-                break;
-            case "summer":
-                event = global.EVENTS_SUMMER.getItem();
-                break;
-            case "autumn":
-                event = global.EVENTS_AUTUMN.getItem();
-                break;
-            case "winter":
-                event = global.EVENTS_WINTER.getItem();
-                break;
-            default:
-                break;
-        }
-
-        event.duration = 3;
-        return event;
     }
 
     nextDay()
@@ -447,7 +498,7 @@ class Game {
         this.day++;
         this.daysUntilNextSeason--;
 
-        this.updateEvent();
+        // this.updateEvent();
 
         // change player turn
         this.currentTurn = (this.currentTurn + 1) % this.players.length;

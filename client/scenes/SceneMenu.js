@@ -12,8 +12,8 @@ const buttons = {
 };
 
 const textFields = {
-    playerName: new TextField(5*16, 2*16, 10*16, 1*16, "player name"),
-    roomCode: new TextField(7*16, 9*16, 6*16, 1*16, "room code"),
+    playerName: new TextField(5*16, 2*16, 10*16, 1*16, "player name", 20),
+    roomCode: new TextField(7*16, 9*16, 6*16, 1*16, "room code", 4),
 };
 
 let selectedTextField = null;
@@ -61,7 +61,9 @@ function onKeyDown(e)
     {
         if(e.key.length == 1)
         {
-            selectedTextField.text += e.key;
+            if(selectedTextField.text.length < selectedTextField.charLimit)
+                selectedTextField.text += e.key;
+            
             if(selectedTextField == textFields.roomCode) errorMessage = "";
         }
         else if(e.key == "Backspace")

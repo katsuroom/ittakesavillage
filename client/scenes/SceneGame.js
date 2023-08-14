@@ -5,8 +5,12 @@ import {img} from "../assets.js";
 
 import * as sm from "../src/SceneManager.js";
 import { Button } from "../src/Button.js";
-import { HarvestNotif } from "../src/HarvestNotif.js";
 import { ItemStack } from "../src/ItemStack.js";
+
+import { NotificationSeason } from "../src/NotificationSeason.js";
+import { NotificationEvent } from "../src/NotificationEvent.js";
+import { NotificationArrival } from "../src/NotificationArrival.js";
+import { NotificationFlee } from "../src/NotificationFlee.js";
 
 
 // game variables ////////////////////////////////////////////////////////////////
@@ -40,6 +44,8 @@ let trees = [];                 // array of apple trees
 
 let inventory = [];             // array of ItemStack objects in inventory
 
+let shop = [];                  // array of shop items
+
 let dailyLoot = [];             // array of available loot items
 let lootAmount = 0;
 
@@ -50,14 +56,19 @@ let healChances = 0;            // for doctor only
 let isUpgrading = false;        // for engineer only
 
 
+// event variarbles
+
+let cropGrowthModifier = 0;     // + number of days for crops to grow
+let priceMultiplier = 1;        // multiplier for shop items
+
+
 // ui ////////////////////////////////////////////////////////////////
 
 const INVENTORY_BOX_SIZE = 2.5;
 const INVENTORY_BOX_MARGIN = 0.1;
-const NOTIFICATION_TIME = 1500;     // number of milliseconds notifications display for
 
 let heldItemStack = null;           // currently held item stack
-let selectedVillager = null;        // currently selected villager for assigning
+let assigningVillager = null;        // currently selected villager for assigning
 
 let infoSelected = null;            // current selected Interactable object in info panel
 let labelSelected = null;           // current highlighted Interactable object label
@@ -67,13 +78,17 @@ let windowStack = ["main"];         // stack of open windows
 let notifications = [];             // list of notification cards
 let currentNotif = null;            // currently displayed notification
 
+// let notificationBox = {x: 16*8, y: 16*8, width: 16*26, height: 16*6}
+let notificationBox = {x: 16*34, y: 16*8, width: 0, height: 16*6}
+
 // buttons ////////////////////////////////////////////////////////////////
 
 const button = {
+    shop: new Button(35*16, 16.5*16, 6*16, 2*16, "green", "shop"),
     endTurn: new Button(35*16, 19*16, 6*16, 2*16, "pink", "end turn"),
 
-    assignVillager: new Button(1*16, 16*16, 6*16, 1.5*16, "orange", "assign"),
-    healVillager: new Button(1*16, 17.75*16, 6*16, 1.5*16, "blue", "heal"),
+    assignVillager: new Button(1*16, 17.75*16, 6*16, 1.5*16, "orange", "assign"),
+    healVillager: new Button(1*16, 19.5*16, 6*16, 1.5*16, "blue", "heal"),
     
     collectBricks: new Button(1*16, 16*16, 6*16, 1.5*16, "red", "collect"),
     harvestCrop: new Button(1*16, 16*16, 6*16, 1.5*16, "green", "harvest"),
@@ -91,7 +106,7 @@ socket.on("change_turn", (_currentTurn) => {
     currentTurn = _currentTurn;
 
     button.endTurn.enabled = isCurrentTurn();
-    button.assignVillager.enabled = role == "chief" && isCurrentTurn();
+    refreshAssignButton();
 
     button.collectBricks.enabled = factory.bricks > 0 && isCurrentTurn();
     button.harvestCrop.enabled = isCurrentTurn();
@@ -100,19 +115,63 @@ socket.on("change_turn", (_currentTurn) => {
 
     button.upgradeMaterial.enabled = role == "engineer" && isCurrentTurn() && budget >= UPGRADE_MATERIAL_COST;
 
-    healChances = role == "doctor" ? 3 : 1;
-    if(rolesPresent["doctor"])
-        button.healVillager.text = `heal (${healChances})`;
+    if(role == "doctor")
+    {
+        switch(facilities["housing"].level)
+        {
+            case 1: healChances = 2; break;
+            case 2: healChances = 3; break;
+            case 3: healChances = 3; break;
+            case 4: healChances = 4; break;
+            case 5: healChances = 5; break;
+            default: break;
+        }
+    }
+    else
+        healChances = 1;
+
+    refreshHealButton();
 
     if(selectedInfoType("villager"))
     {
         infoSelected = villagers.find(obj => obj.name == infoSelected.name);
-        refreshHealButton();
+        // refreshHealButton();
     }
 });
 
+socket.on("purchase_npc", (_npcs) => {
+    npcPresent = _npcs;
+
+    if(npcPresent["doctor"]) refreshHealButton();
+    if(npcPresent["scientist"])
+    {
+        treesUnlocked = true;
+        refreshTrees();
+    }
+
+    // remove NPC from shop
+    for (const [npc, present] of Object.entries(npcPresent)) {
+        if(present)
+        {
+            let index = shop.findIndex(shopItem => shopItem.id == "npc_" + npc);
+            if(index != -1)
+                shop.splice(index, 1);
+        }
+    }
+
+    closeShop();
+    refreshShop();
+
+});
+
 socket.on("daily_loot", (_loot, amount) => {
-    windowStack.push("daily_loot");
+
+    button.endTurn.enabled = false;
+
+    if(getActiveWindow() == "notification")
+        windowStack.splice(windowStack.length - 1, 0, "daily_loot");
+    else
+        windowStack.push("daily_loot");
 
     dailyLoot = _loot;
     lootAmount = amount;
@@ -126,11 +185,24 @@ socket.on("day", (_day, _daysUntilNextSeason) => {
 socket.on("season", (_season, _nextSeason) => {
     season = _season;
     nextSeason = _nextSeason;
+
+    notifications.push(new NotificationSeason(season));
+    triggerNotifications();   
 });
 
 socket.on("event", (_event, _nextEvent) => {
+
+    if(!event || event.duration == 1)
+    {
+        notifications.push(new NotificationEvent(_event, img["event_" + _event.id]));
+        triggerNotifications();   
+    }
+
     event = _event;
     nextEvent = _nextEvent;
+
+    console.log(event);
+    console.log(nextEvent);
 });
 
 socket.on("budget", (_budget) => {
@@ -155,6 +227,23 @@ socket.on("villager", (_villager) => {
 });
 
 socket.on("villagers", (_villagers) => {
+
+    // check for new villager arrival
+    if(villagers.length > 0 && _villagers.length > villagers.length)
+    {
+        let newVillager = null;
+        for(let i = 0; i < _villagers.length; i++)
+        {
+            if(villagers.find(villager => villager.name == _villagers[i].name) == null)
+            {
+                newVillager = _villagers[i];
+                console.log("new villager: " + newVillager.name);
+                notifications.push(new NotificationArrival(newVillager));
+                break;
+            }
+        }
+    }
+
     villagers = _villagers;
 
     if(selectedInfoType("villager"))
@@ -193,8 +282,21 @@ socket.on("factory", (_factory) => {
         infoSelected = factory;
 });
 
-socket.on("inventory", (_inventory) => {
-    inventory = _inventory;
+socket.on("shop", (_shop) => {
+    shop = _shop;
+    
+    refreshShop();
+});
+
+socket.on("add_shop_item", (_shopItem) => {
+    for(let i = 0; i < shop.length; i++)
+    {
+        if(shop[i].id == _shopItem.id)
+            return;
+    }
+
+    shop.push(_shopItem);
+    refreshShop();
 });
 
 socket.on("farm", (_farm) => {
@@ -208,22 +310,7 @@ socket.on("trees", (_trees, _treesUnlocked) => {
     trees = _trees;
     treesUnlocked = _treesUnlocked;
 
-    for(let i = 0; i < trees.length; i++)
-    {
-        trees[i].interactBox.x = 16 * (i % 8 + 23);
-        trees[i].interactBox.width = 16;
-
-        if(treesUnlocked)
-        {
-            trees[i].interactBox.y = 16 * 2.5;
-            trees[i].interactBox.height = 24;
-        }
-        else
-        {
-            trees[i].interactBox.y = 16 * 3;
-            trees[i].interactBox.height = 16;
-        }
-    }
+    refreshTrees();
 
     if(selectedInfoType("tree"))
     {
@@ -242,6 +329,25 @@ socket.on("heal_chances", (_healChances) => {
     healChances = _healChances;
 });
 
+socket.on("villager_flee", (_villager) => {
+    notifications.push(new NotificationFlee(_villager));
+    triggerNotifications();
+});
+
+socket.on("set_variable", (_var, _value) => {
+    switch(_var)
+    {
+        case "cropGrowthModifier":
+            cropGrowthModifier = _value;
+            break;
+        case "priceMultiplier":
+            priceMultiplier = _value;
+            break;
+        default:
+            break;
+    }
+});
+
 
 // event handlers ////////////////////////////////////////////////////////////////
 
@@ -253,6 +359,16 @@ function onClick(e)
     {
         closeInventory();
         socket.emit("end_turn", roomId);
+        return;
+    }
+
+    if(buttonClick(button.shop))
+    {
+        if(getActiveWindow() == "shop")
+            closeShop();
+        else
+            openShop();
+
         return;
     }
 
@@ -343,7 +459,7 @@ function onClick(e)
 
         let useItem = false;
 
-        if(!selectedVillager)
+        if(!assigningVillager)
         {
             if(mouseInteract(factory))
             {
@@ -377,7 +493,7 @@ function onClick(e)
             Object.values(facilities).forEach(facility => {
                 if(mouseInteract(facility))
                 {
-                    if(selectedVillager)
+                    if(assigningVillager)
                     {
                         finishAssign(facility);
                         infoSelected = prevSelected;
@@ -402,19 +518,14 @@ function onClick(e)
         villagers.forEach(villager => {
             if(mouseInteract(villager))
             {
-                if(selectedVillager)
+                if(assigningVillager)
                 {
-                    selectedVillager = null;
+                    assigningVillager = null;
                     button.assignVillager.enabled = true;
                 }
                 infoSelected = villager;
 
                 refreshHealButton();
-
-                if(rolesPresent["doctor"])
-                    button.healVillager.text = `heal (${healChances})`;
-                else
-                    button.healVillager.text = `heal ($${HEAL_VILLAGER_COST})`;
             }
         });
 
@@ -441,14 +552,19 @@ function onClick(e)
             return;
         }
 
-        if(selectedVillager)
+        if(assigningVillager)
         {
             finishAssign(null);
             infoSelected = prevSelected;
             return;
         }
 
-        heldItemStack = null;
+        if(heldItemStack)
+        {
+            heldItemStack = null;
+            infoSelected = prevSelected;
+            return;
+        }
     }
 
     if(getActiveWindow() == "inventory")
@@ -514,6 +630,18 @@ function onClick(e)
             }
         }
     }
+
+    if(getActiveWindow() == "shop")
+    {
+        for(let i = 0; i < shop.length; i++)
+        {
+            if(mouseInteract(shop[i]))
+            {
+                purchase(shop[i]);
+                break;
+            }
+        }
+    }
 }
 
 function onKeyDown(e)
@@ -529,6 +657,13 @@ function onKeyDown(e)
             else
                 openInventory();
 
+            break;
+        }
+        case 'h':
+        {
+            // hack
+            infoSelected.sick = true;
+            socket.emit("villager", roomId, infoSelected);
             break;
         }
         default:
@@ -598,17 +733,22 @@ function isCurrentTurn()    // bool
 
 function triggerNotifications()
 {
+    if(getActiveWindow() == "notification") return;
+
     if(notifications.length > 0)
     {
-        closeInventory();
         windowStack.push("notification");
         currentNotif = notifications[0];
         setTimeout(() => {
             currentNotif = null;
             notifications.shift();
-            windowStack.pop();
+            if(getActiveWindow() == "notification") windowStack.pop();
+            
+            notificationBox.x = 16*34;
+            notificationBox.width = 0;
+
             triggerNotifications();
-        }, NOTIFICATION_TIME);
+        }, currentNotif.duration);
     }
 }
 
@@ -626,9 +766,10 @@ function openInventory()
 {
     if(getActiveWindow() != "inventory")
     {
+        closeShop();
         windowStack.push("inventory");
         heldItemStack = null;
-        selectedVillager = null;
+        assigningVillager = null;
 
         button.assignVillager.enabled = false;
         button.healVillager.enabled = false;
@@ -641,7 +782,7 @@ function closeInventory()
     {
         windowStack.pop();
 
-        button.assignVillager.enabled = role == "chief" && isCurrentTurn();
+        refreshAssignButton();
         refreshHealButton();
 
         if(isUpgrading)
@@ -649,6 +790,30 @@ function closeInventory()
             isUpgrading = false;
             button.upgradeMaterial.enabled = true;
         }
+    }
+}
+
+function openShop()
+{
+    if(getActiveWindow() != "shop")
+    {
+        closeInventory();
+        windowStack.push("shop");
+        heldItemStack = null;
+        assigningVillager = null;
+
+        button.assignVillager.enabled = false;
+        button.healVillager.enabled = false;
+    }
+}
+
+function closeShop()
+{
+    if(getActiveWindow() == "shop")
+    {
+        windowStack.pop();
+        refreshAssignButton();
+        refreshHealButton();
     }
 }
 
@@ -660,7 +825,7 @@ function setLabel(obj)
 function plantCrop(farmland)
 {
     farmland.crop = heldItemStack.item;
-    farmland.daysLeft = 4;
+    farmland.daysLeft = (role == "farmer" ? 3 : 4) + cropGrowthModifier;
     farmland.label = farmland.daysLeft + " days";
     socket.emit("farm", roomId, farm);
 
@@ -670,17 +835,13 @@ function plantCrop(farmland)
 function harvestCrop()
 {
     let farmland = infoSelected;
-    let foodName = farmland.crop.food.name;
-    giveItem(farmland.crop.food, 2);
+    giveItem(farmland.crop.food, farmland.amount);
 
     farmland.crop = null;
     farmland.label = "empty";
     socket.emit("farm", roomId, farm);
 
     infoSelected = null;
-
-    // notifications.push(new HarvestNotif(playerName, foodName, 2));
-    // triggerNotifications();
 }
 
 function pickTree()
@@ -716,7 +877,7 @@ function startAssign()
 {
     heldItemStack = null;
 
-    selectedVillager = infoSelected;
+    assigningVillager = infoSelected;
     button.assignVillager.enabled = false;
 }
 
@@ -729,9 +890,9 @@ function finishAssign(facility)
     }
 
     // villager is assigned to same facility
-    if(selectedVillager.currentTask == facility.label)
+    if(facility && assigningVillager.currentTask == facility.label)
     {
-        selectedVillager = null;
+        assigningVillager = null;
         button.assignVillager.enabled = true;
         return;
     }
@@ -739,13 +900,13 @@ function finishAssign(facility)
     // remove villager from current assigned facility
     let oldFacility = null;
 
-    if(selectedVillager.currentTask)
+    if(assigningVillager.currentTask)
     {
-        oldFacility = facilities[selectedVillager.currentTask];
+        oldFacility = facilities[assigningVillager.currentTask];
 
         for(let i = 0; i < oldFacility.assignedVillagers.length; i++)
         {
-            if(oldFacility.assignedVillagers[i] == selectedVillager.name)
+            if(oldFacility.assignedVillagers[i] == assigningVillager.name)
             {
                 oldFacility.assignedVillagers.splice(i, 1);
                 break;
@@ -753,18 +914,19 @@ function finishAssign(facility)
         }
     }
 
-    // add villager to new facility
-    facilities[facility.label].assignedVillagers.push(selectedVillager.name);
-
-
     if(facility)
-        selectedVillager.currentTask = facility.label;
+    {
+        assigningVillager.currentTask = facility.label;
+
+        // add villager to new facility
+        facilities[facility.label].assignedVillagers.push(assigningVillager.name);
+    }
     else
-        selectedVillager.currentTask = null;
+        assigningVillager.currentTask = null;
 
-    socket.emit("assign_villager", roomId, selectedVillager, oldFacility, facility);
+    socket.emit("assign_villager", roomId, assigningVillager, oldFacility, facility);
 
-    selectedVillager = null;
+    assigningVillager = null;
     button.assignVillager.enabled = true;
 }
 
@@ -793,13 +955,13 @@ function healVillager()
     villager.sick = false;
     villager.labelColor = "white";
 
-    if(rolesPresent["doctor"])
+    if(rolesPresent["doctor"] || npcPresent["doctor"])
     {
         healChances--;
-        button.healVillager.text = `heal (${healChances})`;
+        refreshHealButton();
     }
     else
-        spendBudget(HEAL_VILLAGER_COST);
+        spendBudget(Math.floor(HEAL_VILLAGER_COST * priceMultiplier));
 
     socket.emit("villager", roomId, villager);
 }
@@ -900,24 +1062,81 @@ function collectLoot(index)
     lootAmount--;
 
     if(lootAmount == 0)
+    {
         windowStack.pop();
+        button.endTurn.enabled = true;
+    }
 }
 
+function purchase(shopItem)
+{
+    socket.emit("budget", roomId, budget - Math.floor(shopItem.price * priceMultiplier));
+    socket.emit("purchase", roomId, socketId, shopItem);
+}
+
+
 // refresh ////////////////////////////////////////////////////////////////
+
+function refreshTrees()
+{
+    for(let i = 0; i < trees.length; i++)
+    {
+        trees[i].interactBox.x = 16 * (i % 8 + 23);
+        trees[i].interactBox.width = 16;
+
+        if(treesUnlocked)
+        {
+            trees[i].label = "tree";
+
+            trees[i].interactBox.y = 16 * 2.5;
+            trees[i].interactBox.height = 24;
+        }
+        else
+        {
+            trees[i].label = "?";
+
+            trees[i].interactBox.y = 16 * 3;
+            trees[i].interactBox.height = 16;
+        }
+    }
+}
+
+function refreshShop()
+{
+    for(let i = 0; i < shop.length; i++)
+    {
+        shop[i].interactBox.x = 16*(16 + (Math.floor(i/5) * 10));
+        shop[i].interactBox.y = 16*(10+((i%5)*2));
+        shop[i].interactBox.width = 16*4;
+        shop[i].interactBox.height = 16*1.5;
+    }
+}
+
+function refreshAssignButton()
+{
+    button.assignVillager.enabled = role == "chief" && isCurrentTurn();
+}
 
 function refreshHealButton()
 {
     button.healVillager.enabled = false;
+
+    let cost = Math.floor(HEAL_VILLAGER_COST * priceMultiplier);
+
+    if(rolesPresent["doctor"] || npcPresent["doctor"])
+        button.healVillager.text = `heal (${healChances})`;
+    else
+        button.healVillager.text = `heal ($${cost})`;
 
     if(!isCurrentTurn() || !selectedInfoType("villager"))
         return;
 
     if(infoSelected.sick)
     {
-        if(rolesPresent["doctor"])
+        if(rolesPresent["doctor"] || npcPresent["doctor"])
             button.healVillager.enabled = healChances > 0;
         else
-            button.healVillager.enabled = budget >= HEAL_VILLAGER_COST;
+            button.healVillager.enabled = budget >= cost;
     }
 }
 
@@ -941,7 +1160,31 @@ function refreshUpgradeFacilityButton()
     }
 }
 
+
 // drawing ////////////////////////////////////////////////////////////////
+
+function getTextColor(text, def)
+{
+    switch(text)
+    {
+        case "water":
+        case "farming":
+        case "education":
+        case "housing":
+            return facilities[text].labelColor;
+
+        case "most eff:":
+        case "most fav:":
+            return "gold";
+
+        case "least eff:":
+        case "least fav:":
+            return "blueviolet";
+
+        default:
+            return def;
+    }
+}
 
 function drawLabel()
 {
@@ -1009,73 +1252,6 @@ function drawItemLabel(interactBox, item)
         ctx.fillStyle = "dodgerblue";
         ctx.fillText(item.type, (interactBox.x + interactBox.width/2) * SCALE, (interactBox.y * SCALE) - 36);
     }
-}
-
-function drawVillager(villager, x, y, scale)
-{
-    ctx.drawImage(img.villagerShirt,
-        x * SCALE,
-        (y - 16) * SCALE,
-        16 * scale * SCALE, 32 * scale * SCALE);
-    
-    let shirtData = ctx.getImageData(
-        x * SCALE,
-        y * SCALE,
-        16 * scale * SCALE, 32 * scale * SCALE);
-
-    for(let i = 0; i < shirtData.data.length; i += 4)
-    {
-        if(shirtData.data[i] == 255 && shirtData.data[i+1] == 0 && shirtData.data[i+2] == 255)
-        {
-            shirtData.data[i] = villager.shirtColor.r;
-            shirtData.data[i+1] = villager.shirtColor.g;
-            shirtData.data[i+2] = villager.shirtColor.b;
-        }
-    }
-
-    ctx.putImageData(shirtData, 
-        x * SCALE,
-        y * SCALE);
-
-    ctx.drawImage(img.villagerHeadarms,
-        x * SCALE,
-        (y - 16) * SCALE,
-        16 * scale * SCALE, 32 * scale * SCALE);
-
-    ctx.drawImage(img.villagerHair,
-        x * SCALE,
-        (y - 16) * SCALE,
-        16 * scale * SCALE, 32 * scale * SCALE);
-
-    let hairData = ctx.getImageData(
-        x * SCALE,
-        (y - 16) * SCALE,
-        16 * scale * SCALE, 24 * scale * SCALE);
-
-    for(let i = 0; i < hairData.data.length; i += 4)
-    {
-        if(hairData.data[i] == 255 && hairData.data[i+1] == 0 && hairData.data[i+2] == 255)
-        {
-            hairData.data[i] = villager.hairColor.r;
-            hairData.data[i+1] = villager.hairColor.g;
-            hairData.data[i+2] = villager.hairColor.b;
-        }
-
-        // turn skin green if sick
-        if(villager.sick && i > hairData.data.length / 2)
-        {
-            if(hairData.data[i] == 255 && hairData.data[i+1] == 215 && hairData.data[i+2] == 190)
-            {
-                hairData.data[i] = 180;
-                hairData.data[i+1] = 240;
-                hairData.data[i+2] = 170;
-            }
-        }
-    }
-
-    ctx.putImageData(hairData,
-        x * SCALE,
-        (y - 16) * SCALE);
 }
 
 function drawVillagers()
@@ -1210,7 +1386,7 @@ function drawFactory()
     if(heldItemStack && heldItemStack.item.type == "material")
         return;
 
-    if(getActiveWindow() == "main" && !selectedVillager && mouseInteract(factory))
+    if(getActiveWindow() == "main" && !assigningVillager && mouseInteract(factory))
         setLabel(factory);
 }
 
@@ -1229,7 +1405,7 @@ function drawFarmland()
         if(heldItemStack && heldItemStack.item.type == "material")
             return;
 
-        if(getActiveWindow() == "main" && !selectedVillager && !obj.locked && mouseInteract(obj))
+        if(getActiveWindow() == "main" && !assigningVillager && !obj.locked && mouseInteract(obj))
             setLabel(obj);
     });
 }
@@ -1259,6 +1435,26 @@ function drawTrees()
     });
 }
 
+function drawTitleBar()
+{
+    ctx.save();
+
+    ctx.font = "20px Kenney Mini Square";
+    ctx.textBaseline = "middle";
+
+    let text = "current turn:   " + players[currentTurn].name;
+    let x = 16*8.5*SCALE;
+    let y = 16*0.5*SCALE;
+
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = "white";
+    ctx.strokeText(text, x, y);
+    ctx.fillStyle = "black";
+    ctx.fillText(text, x, y);
+
+    ctx.restore();
+}
+
 function drawInfoPanel()
 {
     ctx.font = '20px Kenney Mini Square';
@@ -1281,41 +1477,51 @@ function drawInfoPanel()
             ctx.textAlign = "center";
             ctx.fillText(villager.name, 16*4*SCALE, 16*6*SCALE);
 
+            ctx.beginPath();
+            ctx.roundRect(16*0.5*SCALE, 16*7.75*SCALE, 16*7*SCALE, 16*8.5*SCALE, 4*SCALE);
+            ctx.fill();
+
             ctx.font = '16px Kenney Mini Square';
 
             let textLeft = [
-                "status: ",
-                "happiness: ",
-                "hunger: ",
-                "most eff: ",
-                "least eff: ",
-                "most fav: ",
-                "least fav: ",
-                "favorite: "
+                "status:",
+                "happiness:",
+                "hunger:",
+                "most eff:",
+                "most fav:",
+                "least eff:",
+                "least fav:",
+                "favorite:"
             ];
 
             let textRight = [
                 villager.sick == true ? "sick" : "healthy",
-                (role == "sociologist" ? villager.happiness : "?") + " / 100",
+                (role == "sociologist" || npcPresent["sociologist"] ? villager.happiness : "?") + " / 100",
                 villager.hunger + " / 5",
                 villager.mostEffectiveTask,
-                villager.leastEffectiveTask,
                 villager.mostFavoriteTask,
+                villager.leastEffectiveTask,
                 villager.leastFavoriteTask,
                 villager.favoriteFood
             ];  
 
+            // ctx.fillStyle = "white";
             for(let i = 0; i < textLeft.length; i++)
             {
+                ctx.fillStyle = getTextColor(textLeft[i], "white");
                 ctx.textAlign = "left";
                 ctx.fillText(textLeft[i], 16 * SCALE, 16 * (i * 0.75 + 8) * SCALE);
+
+                ctx.fillStyle = getTextColor(textRight[i], "white");
                 ctx.textAlign = "right";
                 ctx.fillText(textRight[i], 16 * 7 * SCALE, 16 * (i * 0.75 + 8) * SCALE);
             }
 
             ctx.textAlign = "right";
+            ctx.fillStyle = getTextColor(villager.currentTask, "gray");
             ctx.fillText(villager.currentTask ? villager.currentTask : "(none)", 16 * 7 * SCALE, 16 * 15 * SCALE);
             ctx.textAlign = "left";
+            ctx.fillStyle = "white";
             ctx.fillText("working:", 16 * SCALE, 16 * 15 * SCALE);
             
             drawButton(button.assignVillager);
@@ -1422,14 +1628,15 @@ function drawInfoPanel()
 
                 ctx.font = '16px Kenney Mini Square';
                 ctx.fillText(farmland.crop.food.name, 16*4*SCALE, 16*10*SCALE);
+                ctx.fillText("+" + farmland.amount, 16*4*SCALE, 16*11*SCALE);
 
                 if(farmland.daysLeft == 0)
                 {
-                    ctx.fillText(farmland.label + " to harvest", 16*4*SCALE, 16*11*SCALE);
+                    ctx.fillText(farmland.label + " to harvest", 16*4*SCALE, 16*12*SCALE);
                     drawButton(button.harvestCrop);
                 }
                 else
-                    ctx.fillText(farmland.label + " until mature", 16*4*SCALE, 16*11*SCALE);
+                    ctx.fillText(farmland.label + " until mature", 16*4*SCALE, 16*12*SCALE);
             }
             else
             {
@@ -1519,6 +1726,7 @@ function drawActionPanel()
     ctx.fillText("next event: ", 16*35*SCALE, 16*11*SCALE);
     ctx.fillText(nextEvent ? nextEvent.name : "", 16*35*SCALE, 16*12*SCALE);
 
+    drawButton(button.shop);
     drawButton(button.endTurn);
 }
 
@@ -1708,6 +1916,57 @@ function drawInventory()
     ctx.restore();
 }
 
+function drawShop()
+{
+    if(getActiveWindow() != "shop") return;
+
+    ctx.save();
+
+    ctx.fillStyle = "white";
+    ctx.fillRect(16*10*SCALE, 16*7*SCALE, 16*22*SCALE, 16*13*SCALE);
+    ctx.strokeStyle = "black";
+    ctx.lineWidth = 4;
+    ctx.strokeRect(16*10*SCALE, 16*7*SCALE, 16*22*SCALE, 16*13*SCALE);
+
+    ctx.font = "24px Kenney Mini Square";
+    ctx.fillStyle = "black";
+    ctx.fillText("shop", 16*11*SCALE, 16*7.5*SCALE);
+
+    ctx.font = "16px Kenney Mini Square";
+    for(let i = 0; i < shop.length; i++)
+    {
+        ctx.fillStyle = "black";
+        ctx.textAlign = "left";
+        ctx.textBaseline = "top";
+        ctx.fillText(shop[i].name, 16*(11 + (Math.floor(i/5) * 10))*SCALE, 16*(10+((i%5)*2))*SCALE);
+        
+        if(mouseInteract(shop[i]))
+        {
+            ctx.fillStyle = "lightgray";
+            ctx.fillRect(shop[i].interactBox.x*SCALE, shop[i].interactBox.y*SCALE, shop[i].interactBox.width*SCALE, shop[i].interactBox.height*SCALE);
+        }
+
+        ctx.strokeStyle = "gray";
+        ctx.strokeRect(shop[i].interactBox.x*SCALE, shop[i].interactBox.y*SCALE, shop[i].interactBox.width*SCALE, shop[i].interactBox.height*SCALE);
+
+        ctx.fillStyle = "black";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+
+        let price = shop[i].price;
+
+        if(!shop[i].name.includes("npc") && priceMultiplier != 1)
+        {
+            ctx.fillStyle = "green";
+            price = Math.floor(price * priceMultiplier);
+        }
+
+        ctx.fillText("$" + price, (shop[i].interactBox.x + shop[i].interactBox.width/2)*SCALE, (shop[i].interactBox.y + shop[i].interactBox.height/2)*SCALE);
+    }
+
+    ctx.restore();
+}
+
 function drawHeldItemStack()
 {
     if(!heldItemStack) return;
@@ -1743,7 +2002,18 @@ function drawNotification()
     if(!currentNotif) return;
 
     ctx.fillStyle = "black";
-    ctx.fillRect(16*8*SCALE, 16*8*SCALE, 16*26*SCALE, 16*6*SCALE);
+
+    ctx.globalAlpha = 0.9;
+
+    let nb = notificationBox;
+    if(nb.x > 16*8)
+    {
+        nb.x -= 16;
+        nb.width += 16;
+    }
+    ctx.fillRect(nb.x*SCALE, nb.y*SCALE, nb.width*SCALE, nb.height*SCALE);
+
+    ctx.globalAlpha = 1;
 
     ctx.save();
     currentNotif.draw(ctx, SCALE);
@@ -1765,11 +2035,13 @@ export function draw()
     drawTrees();
     drawPaths();
 
+    drawTitleBar();
     drawActionPanel();
     drawInfoPanel();
 
     drawLoot();
     drawInventory();
+    drawShop();
 
     drawLabel();
     drawHeldItemStack();

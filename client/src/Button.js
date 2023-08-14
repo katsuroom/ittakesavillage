@@ -21,8 +21,8 @@ export class Button {
                 this.colorB = "#ffb580";
                 break;
             case "green":
-                this.colorA = "#5ce55c";    // #66ff66
-                this.colorB = "#66ff66";    // #80ff80
+                this.colorA = "#52cc52";    // #66ff66
+                this.colorB = "#5ce65c";    // #80ff80
                 break;
             case "blue":
                 this.colorA = "#66ccff";

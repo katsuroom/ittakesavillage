@@ -2,8 +2,10 @@ const Seed = require("./src/Seed.js");
 const Food = require("./src/Food.js");
 const Material = require("./src/Material.js");
 const Season = require("./src/Season.js");
-const Event = require("./src/Event.js");
 const {Option, RandomTable} = require("./src/RandomTable.js");
+const ShopItem = require("./src/ShopItem.js");
+
+const Event = require("./src/Event.js");
 
 const VILLAGER_COUNT = 12;
 const FARMLAND_COUNT = 32;
@@ -14,7 +16,9 @@ const TREE_GROWTH_TIME = 10;
 const FARMLAND_UNLOCKED = false;
 const FARMLAND_LOCKED = true;
 
-const SICK_CHANCE = 0.5;
+const SICK_CHANCE = 0.03;
+const DEATH_THRESHOLD = 40;
+const FLOOD_DAMAGE = 20;
 
 const ITEMS = {
     cucumber: new Food("cucumber", "cucumber"),
@@ -38,6 +42,21 @@ ITEMS.tomatoSeed = new Seed("tomato seed", "tomato_seed", ITEMS.tomato);
 ITEMS.potatoSeed = new Seed("potato seed", "potato_seed", ITEMS.potato);
 ITEMS.carrotSeed = new Seed("carrot seed", "carrot_seed", ITEMS.carrot);
 
+const SHOP = {
+    "npc_doctor":       new ShopItem("doctor npc", "npc_doctor", 400, 1),
+    "npc_scientist":    new ShopItem("scientist npc", "npc_scientist", 400, 1),
+    "npc_sociologist":  new ShopItem("sociologist npc", "npc_sociologist", 400, 1),
+    "npc_farmer":       new ShopItem("farmer npc", "npc_farmer", 400, 1),
+    "npc_engineer":     new ShopItem("engineer npc", "npc_engineer", 400, 1),
+
+    "cucumber_seed":    new ShopItem("cucumber seed", "cucumber_seed", 10, -1),
+    "tomato_seed":      new ShopItem("tomato seed", "tomato_seed", 10, -1),
+    "potato_seed":      new ShopItem("potato seed", "potato_seed", 10, -1),
+    "carrot_seed":      new ShopItem("carrot seed", "carrot_seed", 10, -1),
+
+    "steel":            new ShopItem("steel", "steel", 30, -1),
+}
+
 const SEASONS = [
     new Season("spring", 20),
     new Season("summer", 10),
@@ -51,21 +70,21 @@ const EVENT_DURATION_MAX = 5;
 
 const EVENTS = {
     // neutral
-    "cloudy_day": new Event("Cloudy Day", "cloudy_day", "No effect."),
+    "cloudy_day": new Event("Cloudy Day", "cloudy_day", "no effect."),
 
     // positive
-    "harvest": new Event("Harvest", "harvest"),
-    "rainy_day": new Event("Rainy Day", "rainy_day"),
-    "free_cake": new Event("Free Cake", "free_cake"),
-    "black_friday": new Event("Black Friday", "black_friday"),
-    "summer_day": new Event("Summer Day", "summer_day"),
+    "harvest": new Event("Harvest", "harvest", "each player receives free crops."),
+    "rainy_day": new Event("Rainy Day", "rainy_day", "planted crops grow one day faster."),
+    "free_cake": new Event("Free Cake", "free_cake", "a new villager has arrived."),
+    "black_friday": new Event("Black Friday", "black_friday", "prices are 50% off."),
+    "summer_day": new Event("Summer Day", "summer_day", "villagers are temporarily immune to sickness."),
 
     // negative
-    "drought": new Event("Drought", "drought"),
-    "disease": new Event("Disease", "disease"),
-    "heat_stroke": new Event("Heat Stroke", "heat_stroke"),
-    "death": new Event("Death", "death"),
-    "flood": new Event("Flood", "flood")
+    "drought": new Event("Drought", "drought", "some crops have died."),
+    "disease": new Event("Disease", "disease", "some villagers have become ill."),
+    "heat_stroke": new Event("Heat Stroke", "heat_stroke", "villager progress is slowed."),
+    "death": new Event("Death", "death", "a villager will die if happiness is not raised."),
+    "flood": new Event("Flood", "flood", "all facilities lose 20 progress.")
 };
 
 const EVENTS_SPRING = new RandomTable([
@@ -137,9 +156,12 @@ module.exports = {
     FARMLAND_UNLOCKED,
     FARMLAND_LOCKED,
     SICK_CHANCE,
+    DEATH_THRESHOLD,
+    FLOOD_DAMAGE,
     TREE_COUNT,
     TREE_GROWTH_TIME,
     ITEMS,
+    SHOP,
     SEASONS,
     EVENT_DURATION_MIN,
     EVENT_DURATION_MAX,

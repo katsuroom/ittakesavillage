@@ -5,15 +5,16 @@ export const ctx = canvas.getContext("2d", { willReadFrequently: true });
 
 export const SCALE = 2;
 
+import {img} from "../assets.js";
+
 
 // mouse events ////////////////////////////////////////////////////////////////
 
 export let mouse = {x: 0, y: 0};
 
 canvas.addEventListener("mousemove", (e) => {
-    let rect = canvas.getBoundingClientRect();
-    mouse.x = (e.clientX - rect.left) * window.devicePixelRatio;
-    mouse.y = (e.clientY - rect.top) * window.devicePixelRatio;
+    mouse.x = e.offsetX;
+    mouse.y = e.offsetY;
 });
 
 
@@ -21,6 +22,7 @@ canvas.addEventListener("mousemove", (e) => {
 
 export let players = [];
 export let rolesPresent = {};
+export let npcPresent = {};
 
 export let playerName = "";
 export let role = "";
@@ -101,4 +103,71 @@ export function drawButton(button)
     }
 
     ctx.restore();
+}
+
+export function drawVillager(villager, x, y, scale)
+{
+    ctx.drawImage(img.villagerShirt,
+        x * SCALE,
+        (y - 16) * SCALE,
+        16 * scale * SCALE, 32 * scale * SCALE);
+    
+    let shirtData = ctx.getImageData(
+        x * SCALE,
+        y * SCALE,
+        16 * scale * SCALE, 32 * scale * SCALE);
+
+    for(let i = 0; i < shirtData.data.length; i += 4)
+    {
+        if(shirtData.data[i] == 255 && shirtData.data[i+1] == 0 && shirtData.data[i+2] == 255)
+        {
+            shirtData.data[i] = villager.shirtColor.r;
+            shirtData.data[i+1] = villager.shirtColor.g;
+            shirtData.data[i+2] = villager.shirtColor.b;
+        }
+    }
+
+    ctx.putImageData(shirtData, 
+        x * SCALE,
+        y * SCALE);
+
+    ctx.drawImage(img.villagerHeadarms,
+        x * SCALE,
+        (y - 16) * SCALE,
+        16 * scale * SCALE, 32 * scale * SCALE);
+
+    ctx.drawImage(img.villagerHair,
+        x * SCALE,
+        (y - 16) * SCALE,
+        16 * scale * SCALE, 32 * scale * SCALE);
+
+    let hairData = ctx.getImageData(
+        x * SCALE,
+        (y - 16) * SCALE,
+        16 * scale * SCALE, 24 * scale * SCALE);
+
+    for(let i = 0; i < hairData.data.length; i += 4)
+    {
+        if(hairData.data[i] == 255 && hairData.data[i+1] == 0 && hairData.data[i+2] == 255)
+        {
+            hairData.data[i] = villager.hairColor.r;
+            hairData.data[i+1] = villager.hairColor.g;
+            hairData.data[i+2] = villager.hairColor.b;
+        }
+
+        // turn skin green if sick
+        if(villager.sick && i > hairData.data.length / 2)
+        {
+            if(hairData.data[i] == 255 && hairData.data[i+1] == 215 && hairData.data[i+2] == 190)
+            {
+                hairData.data[i] = 180;
+                hairData.data[i+1] = 240;
+                hairData.data[i+2] = 170;
+            }
+        }
+    }
+
+    ctx.putImageData(hairData,
+        x * SCALE,
+        (y - 16) * SCALE);
 }
