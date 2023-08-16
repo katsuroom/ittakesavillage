@@ -35,7 +35,7 @@ const ITEMS = {
 
     wood: new Material("wood", "wood", 3, 6),
     brick: new Material("brick", "brick", 2, 6),
-    steel: new Material("steel", "steel", 500, 10),
+    steel: new Material("steel", "steel", 5, 10),
 };
 
 ITEMS.cucumberSeed = new Seed("cucumber seed", "cucumber_seed", ITEMS.cucumber);

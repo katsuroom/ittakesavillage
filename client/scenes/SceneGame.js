@@ -667,9 +667,9 @@ function onKeyDown(e)
         case 'h':
         {
             // hack
-            infoSelected.sick = true;
-            socket.emit("villager", roomId, infoSelected);
-            break;
+            // infoSelected.sick = true;
+            // socket.emit("villager", roomId, infoSelected);
+            // break;
         }
         default:
             break;
