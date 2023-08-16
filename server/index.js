@@ -148,6 +148,15 @@ function startGame(roomId)
 {
     let game = games[roomId];
 
+    // chief goes first
+    let chiefIndex = game.players.findIndex(player => player.role == "chief");
+    if(chiefIndex != -1)
+    {
+        let chief = game.players[chiefIndex];
+        game.players.splice(chiefIndex, 1);
+        game.players.unshift(chief);
+    }
+
     game.initPaths();
     game.initVillagers();
     game.initFacilities();
@@ -180,6 +189,8 @@ function startGame(roomId)
     game.players.forEach(player => {
 
         player.connected = true;
+
+        io.sockets.to(player.id).emit("refresh_lobby", games[roomId].players, roomId);
 
         io.sockets.to(player.id).emit("start_game");
         io.sockets.to(player.id).emit("day", game.day, game.daysUntilNextSeason);
@@ -246,12 +257,83 @@ function disconnectGame(game, index)
     game.players[index].connected = false;
 
     // remove game if every player is disconnected
+    let removeGame = true;
     for(let i = 0; i < game.players.length; i++)
     {
-        if(game.players[i].connected) return;
+        if(game.players[i].connected)
+        {
+            removeGame = false;
+            break;
+        }
     }
 
-    delete games[game.roomId];
+    if(removeGame)
+    {
+        delete games[game.roomId];
+        return;
+    }
+
+    // change current player if disconnected
+    if(index == game.currentTurn)
+    {
+        game.changeTurn();
+
+        game.players.forEach(player => {
+            io.sockets.to(player.id).emit("change_turn", game.currentTurn);
+        });
+    }
+}
+
+function reconnect(socket, _roomId, _socketId)
+{
+    let game = games[_roomId];
+    if(game)
+    {
+        let player = game.players.find(player => player.id == _socketId);
+        player.id = socket.id;
+        player.connected = true;
+
+        game.players.forEach(player => {
+            io.sockets.to(player.id).emit("refresh_lobby", game.players, _roomId);
+        });
+
+    
+        socket.emit("reconnect", player);
+        socket.emit("day", game.day, game.daysUntilNextSeason);
+        socket.emit("season", game.season, game.nextSeason);
+        socket.emit("budget", game.budget);
+        socket.emit("villagers", game.villagers);
+        socket.emit("paths", game.paths);
+        socket.emit("facilities", game.facilities);
+        socket.emit("factory", game.factory);
+
+        // let inventory = game.initInventory();
+        // inventory.forEach(item => io.sockets.to(player.id).emit("give_item", item, 1));
+
+        socket.emit("farm", game.farm);
+        socket.emit("trees", game.trees, game.rolesPresent["scientist"]);
+        socket.emit("event", game.event, game.nextEvent);
+        socket.emit("change_turn", game.currentTurn);
+        socket.emit("refresh_npcs", game.npcPresent);
+
+        // shop
+        let shop = [];
+        for (const [role, present] of Object.entries(game.rolesPresent)) {
+            if(role != "chief" && !present)
+                shop.push(global.SHOP["npc_" + role]);
+        }
+        if(player.role == "farmer")
+        {
+            shop.push(global.SHOP["cucumber_seed"]);
+            shop.push(global.SHOP["tomato_seed"]);
+            shop.push(global.SHOP["potato_seed"]);
+            shop.push(global.SHOP["carrot_seed"]);
+        }
+        if(player.role == "engineer")
+            shop.push(global.SHOP["steel"]);
+
+        socket.emit("shop", shop);
+    }
 }
 
 
@@ -466,7 +548,15 @@ function updateEvent(game)
 
         // switch to next event
         
-        game.event = game.nextEvent;
+        if(game.facilities["power"].level > 1)
+        {
+            game.event = global.EVENTS.cloudy_day.clone();
+            game.facilities["power"].level = 1;
+            game.facilities["power"].progress = 0;
+        }
+        else
+            game.event = game.nextEvent;
+
         eventStart(game, game.event);
 
         // set next event
@@ -535,7 +625,7 @@ function getNextEvent(game)
     return event;
 }
 
-function checkQuest(game)
+function checkQuest(socket, game)
 {
     game.villagers.forEach(villager => {
         if(villager.quest)
@@ -559,6 +649,7 @@ function checkQuest(game)
 
             if(completed)
             {
+                socket.emit("give_item", global.ITEMS.steel, 2);
                 game.players.forEach(player => io.sockets.to(player.id).emit("quest_complete", villager));
                 villager.quest = null;
                 game.players.forEach(player => io.sockets.to(player.id).emit("villager", villager));
@@ -579,6 +670,7 @@ io.on("connection", (socket) => {
     socket.on("join_game", (_playerName, _roomId) => joinGame(socket, _playerName, _roomId));
     socket.on("select_role", (_roomId, _newRole) => selectRole(socket, _roomId, _newRole));
     socket.on("ready", (_roomId) => ready(socket, _roomId));
+    socket.on("reconnect", (_roomId, _socketId) => reconnect(socket, _roomId, _socketId));
 
     socket.on("farm", (_roomId, _farm) => {
         let game = games[_roomId];
@@ -641,7 +733,7 @@ io.on("connection", (socket) => {
             {
                 game.villagers[i] = _villager;
 
-                checkQuest(game);
+                checkQuest(socket, game);
 
                 game.players.forEach(player => {
                     io.sockets.to(player.id).emit("villager", game.villagers[i]);
@@ -673,10 +765,7 @@ io.on("connection", (socket) => {
         game.nextDay();
 
         // check for happiness quest completion
-        checkQuest(game);
-
-        // change player turn
-        game.currentTurn = (game.currentTurn + 1) % game.players.length;
+        checkQuest(socket, game);
 
         updateEvent(game);
 
@@ -741,6 +830,9 @@ io.on("connection", (socket) => {
                 fleeingVillagers.push(villager);
             }
         }
+
+        // change player turn
+        game.changeTurn();
 
         game.players.forEach(player => {
             io.sockets.to(player.id).emit("day", game.day, game.daysUntilNextSeason);
@@ -815,7 +907,7 @@ io.on("connection", (socket) => {
         let facility = game.facilities[_facility.label];
         game.upgradeFacility(facility);
 
-        checkQuest(game);
+        checkQuest(socket, game);
 
         game.players.forEach(player => {
             io.sockets.to(player.id).emit("facility", facility);

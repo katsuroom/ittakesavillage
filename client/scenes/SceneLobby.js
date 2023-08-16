@@ -39,7 +39,7 @@ socket.on("refresh_roles", (_rolesPresent) => {
 });
 
 socket.on("start_game", () => {
-    // localStorage.lastJoinedGame = JSON.stringify({playerName, role, roomId, socketId});
+    localStorage.prevGame = JSON.stringify({roomId, socketId});
 
     sm.loadScene(sm.SCENE.game);
 });

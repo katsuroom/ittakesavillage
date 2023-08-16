@@ -85,6 +85,13 @@ socket.on("error_message", (_message) => {
     errorMessage = _message;
 });
 
+socket.on("reconnect", (_player) => {
+    playerName = _player.name;
+    role = _player.role;
+
+    sm.loadScene(sm.SCENE.game);
+});
+
 
 export function init()
 {
@@ -100,6 +107,16 @@ export function init()
 
     canvas.addEventListener("click", onClick);
     window.addEventListener("keydown", onKeyDown);
+
+
+    // reconnect previous game
+    if(localStorage.prevGame)
+    {
+        let prevGame = JSON.parse(localStorage.prevGame);
+        console.log(prevGame);
+        roomId = prevGame.roomId;
+        socket.emit("reconnect", prevGame.roomId, prevGame.socketId);
+    }
 }
 
 export function exit()

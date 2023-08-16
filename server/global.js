@@ -83,28 +83,28 @@ const EVENT_DURATION_MAX = 5;
 
 const EVENTS = {
     // neutral
-    "cloudy_day": new Event("Cloudy Day", "cloudy_day", "no effect."),
+    "cloudy_day": new Event("Cloudy Day", "cloudy_day", "no effect.", 0),
 
     // positive
-    "harvest": new Event("Harvest", "harvest", "each player receives free crops."),
-    "rainy_day": new Event("Rainy Day", "rainy_day", "planted crops grow one day faster."),
-    "free_cake": new Event("Free Cake", "free_cake", "a new villager has arrived."),
-    "black_friday": new Event("Black Friday", "black_friday", "prices are 50% off."),
-    "summer_day": new Event("Summer Day", "summer_day", "villagers are temporarily immune to sickness."),
+    "harvest": new Event("Harvest", "harvest", "each player receives free crops.", 0),
+    "rainy_day": new Event("Rainy Day", "rainy_day", "planted crops grow one day faster.", 0),
+    "free_cake": new Event("Free Cake", "free_cake", "a new villager has arrived.", 0),
+    "black_friday": new Event("Black Friday", "black_friday", "prices are 50% off.", 0),
+    "summer_day": new Event("Summer Day", "summer_day", "villagers are temporarily immune to sickness.", 0),
 
     // negative
-    "drought": new Event("Drought", "drought", "some crops have died."),
-    "disease": new Event("Disease", "disease", "some villagers have become ill."),
-    "heat_stroke": new Event("Heat Stroke", "heat_stroke", "villager progress is slowed."),
-    "death": new Event("Death", "death", "a villager will die if happiness is not raised."),
-    "flood": new Event("Flood", "flood", "all facilities lose 20 progress.")
+    "drought": new Event("Drought", "drought", "some crops have died.", 1),
+    "disease": new Event("Disease", "disease", "some villagers have become ill.", 1),
+    "heat_stroke": new Event("Heat Stroke", "heat_stroke", "villager progress is slowed.", 1),
+    "death": new Event("Death", "death", "a villager will die if happiness is not raised.", 1),
+    "flood": new Event("Flood", "flood", "all facilities lose 20 progress.", 1)
 };
 
 const EVENTS_SPRING = new RandomTable([
-    new Option(EVENTS["cloudy_day"], 8),
+    new Option(EVENTS["cloudy_day"], 4),
     new Option(EVENTS["harvest"], 11),
     new Option(EVENTS["rainy_day"], 28),
-    new Option(EVENTS["free_cake"], 8),
+    new Option(EVENTS["free_cake"], 4),
     new Option(EVENTS["black_friday"], 8),
     new Option(EVENTS["drought"], 1),
     new Option(EVENTS["disease"], 5),

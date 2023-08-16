@@ -32,6 +32,8 @@ export const img = {
     treeBare:           loadImage("assets/art/tree_bare.png"),
     treeRipe:           loadImage("assets/art/tree_ripe.png"),
     treeStump:          loadImage("assets/art/tree_stump.png"),
+    rain0:              loadImage("assets/art/rain0.png"),
+    rain1:              loadImage("assets/art/rain1.png"),
 
     // items
     "cucumber":         loadImage("assets/art/cucumber.png"),

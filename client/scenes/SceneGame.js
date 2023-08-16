@@ -6,6 +6,7 @@ import {img} from "../assets.js";
 import * as sm from "../src/SceneManager.js";
 import { Button } from "../src/Button.js";
 import { ItemStack } from "../src/ItemStack.js";
+import { Animation } from "../src/Animation.js";
 
 import { NotificationSeason } from "../src/NotificationSeason.js";
 import { NotificationEvent } from "../src/NotificationEvent.js";
@@ -81,6 +82,8 @@ let currentNotif = null;            // currently displayed notification
 
 // let notificationBox = {x: 16*8, y: 16*8, width: 16*26, height: 16*6}
 let notificationBox = {x: 16*34, y: 16*8, width: 0, height: 16*6}
+
+let rain = new Animation([img.rain0, img.rain1], 10);
 
 // buttons ////////////////////////////////////////////////////////////////
 
@@ -637,7 +640,7 @@ function onClick(e)
     {
         for(let i = 0; i < shop.length; i++)
         {
-            if(mouseInteract(shop[i]))
+            if(isCurrentTurn && mouseInteract(shop[i]))
             {
                 purchase(shop[i]);
                 break;
@@ -1153,7 +1156,11 @@ function refreshUpgradeFacilityButton()
     {
         let enable = true;
 
-        if(infoSelected.label != "power")
+        if(infoSelected.label == "power")
+        {
+            enable = infoSelected.level == 1;
+        }
+        else
         {
             Object.values(infoSelected.cost).forEach(amount => {
                 if(amount > 0)
@@ -1375,12 +1382,15 @@ function drawFacilities()
     ctx.drawImage(img.facilityEducation, 176 * SCALE, 240 * SCALE, img.facilityEducation.width * SCALE, img.facilityEducation.height * SCALE);
     ctx.drawImage(img.facilityHousing, 368 * SCALE, 240 * SCALE, img.facilityHousing.width * SCALE, img.facilityHousing.height * SCALE);
 
-    ctx.drawImage(img.powerOff, 16*16*SCALE, 16*1*SCALE, img.powerOff.width * SCALE, img.powerOn.height * SCALE);
+    if(Object.keys(facilities).length > 0)
+    {
+        ctx.drawImage(facilities["power"].level > 1 ? img.powerOn : img.powerOff, 16*16*SCALE, 16*1*SCALE, img.powerOff.width * SCALE, img.powerOn.height * SCALE);
 
-    Object.values(facilities).forEach(facility => {
-        if(getActiveWindow() == "main" && mouseInteract(facility))
-            setLabel(facility);
-    });
+        Object.values(facilities).forEach(facility => {
+            if(getActiveWindow() == "main" && mouseInteract(facility))
+                setLabel(facility);
+        });
+    }
 }
 
 function drawFactory()
@@ -1436,6 +1446,16 @@ function drawTrees()
         if(getActiveWindow() == "main" && mouseInteract(obj))
             setLabel(obj);
     });
+}
+
+function drawRain()
+{
+    if(event.id != "rainy_day") return;
+
+    ctx.globalAlpha = 0.25;
+    let image = rain.getFrame();
+    ctx.drawImage(image, 0, 0, image.width/2, image.height/2, 16*8*SCALE, 0, image.width*SCALE, image.height*SCALE);
+    ctx.globalAlpha = 1;
 }
 
 function drawTitleBar()
@@ -1553,7 +1573,14 @@ function drawInfoPanel()
 
                 ctx.font = '16px Kenney Mini Square';
                 ctx.fillText("level: " + facility.level, 16*4*SCALE, 16*9*SCALE);
-                ctx.fillText("progress: " + facility.progress + " / " + facility.progressMax, 16*4*SCALE, 16*10*SCALE);
+
+                if(facility.level == 1)
+                    ctx.fillText("progress: " + facility.progress + " / " + facility.progressMax, 16*4*SCALE, 16*10*SCALE);
+                else
+                {
+                    ctx.fillText("the next event", 16*4*SCALE, 16*10*SCALE);
+                    ctx.fillText("will be blocked", 16*4*SCALE, 16*11*SCALE);
+                }
             }
             else
             {
@@ -1599,7 +1626,8 @@ function drawInfoPanel()
             if(facility.assignedVillagers.length == 0)
                 ctx.fillText("(none)", 16*4*SCALE, 16*14*SCALE);
 
-            drawButton(button.upgradeFacility);
+            if(!(facility.label == "power" && facility.level > 1))
+                drawButton(button.upgradeFacility);
             
             ctx.textAlign = "left";
             break;
@@ -1733,8 +1761,11 @@ function drawActionPanel()
     }
     // ctx.fillText(event ? event.name : "", 16*35*SCALE, 16*7*SCALE);
 
-    ctx.fillText("next event: ", 16*35*SCALE, 16*11*SCALE);
-    ctx.fillText(nextEvent ? nextEvent.name : "", 16*35*SCALE, 16*12*SCALE);
+    if(role == "scientist")
+    {
+        ctx.fillText("next event: ", 16*35*SCALE, 16*11*SCALE);
+        ctx.fillText(nextEvent ? (nextEvent.type == 0 ? "good" : "bad") : "", 16*35*SCALE, 16*12*SCALE);
+    }
 
     drawButton(button.shop);
     drawButton(button.endTurn);
@@ -2044,6 +2075,8 @@ export function draw()
     
     drawTrees();
     drawPaths();
+
+    drawRain();
 
     drawTitleBar();
     drawActionPanel();

@@ -290,6 +290,12 @@ class Game {
 
     upgradeFacility(facility)
     {
+        if(facility.label == "power")
+        {
+            facility.level++;
+            return;
+        }
+
         facility.progress = 0;
         facility.level++;
         switch(facility.level)
@@ -485,6 +491,13 @@ class Game {
             }
 
         });
+    }
+
+    changeTurn()
+    {
+        this.currentTurn = (this.currentTurn + 1) % this.players.length;
+        if(!this.players[this.currentTurn].connected)
+            this.changeTurn();
     }
 
     nextDay()
