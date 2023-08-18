@@ -5,8 +5,6 @@ const Interactable = require("./Interactable.js");
 const facilities = ["water", "farming", "education", "housing"];
 const foods = ["cucumber", "tomato", "potato", "carrot"];
 
-const QUESTS = require("../global.js");
-
 class Villager extends Interactable {
 
     // villagers = array of Villagers
@@ -31,11 +29,11 @@ class Villager extends Interactable {
         this.sick = false;
         this.happiness = 50;    // 0 - 100
         this.hunger = 5;        // 0 - 5
-        this.favoriteFood = this.generateFavoriteFood();
-        this.mostEffectiveTask = this.generateTask();
-        this.leastEffectiveTask = this.generateLeastEffectiveTask();
-        this.mostFavoriteTask = this.generateTask();
-        this.leastFavoriteTask = this.generateLeastFavoriteTask();
+        this.favoriteFood = Villager.generateFavoriteFood();
+        this.mostEffectiveTask = Villager.generateTask();
+        this.leastEffectiveTask = Villager.generateLeastEffectiveTask(this.mostEffectiveTask);
+        this.mostFavoriteTask = Villager.generateTask();
+        this.leastFavoriteTask = Villager.generateLeastFavoriteTask(this.mostFavoriteTask);
         this.currentTask = null;
 
         this.quest = null;
@@ -106,32 +104,32 @@ class Villager extends Interactable {
         return {x: x, y: y};
     }
 
-    generateFavoriteFood()          // string
+    static generateFavoriteFood()          // string
     {
         return foods[Math.floor(Math.random() * foods.length)];
     }
 
-    generateTask()                  // string
+    static generateTask()                  // string
     {
         return facilities[Math.floor(Math.random() * facilities.length)];
     }
 
-    generateLeastEffectiveTask()    // string
+    static generateLeastEffectiveTask(mostEffectiveTask)    // string
     {
         let available = [];
         facilities.forEach(e => {
-            if(e != this.mostEffectiveTask)
+            if(e != mostEffectiveTask)
                 available.push(e);
         });
 
         return available[Math.floor(Math.random() * available.length)];
     }
 
-    generateLeastFavoriteTask()     // string
+    static generateLeastFavoriteTask(mostFavoriteTask)     // string
     {
         let available = [];
         facilities.forEach(e => {
-            if(e != this.mostFavoriteTask)
+            if(e != mostFavoriteTask)
                 available.push(e);
         });
 

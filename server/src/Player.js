@@ -7,6 +7,8 @@ class Player {
         this.role = "";
         this.ready = false;
         this.connected = false;
+
+        this.questsComplete = 0;
     }
 };
 

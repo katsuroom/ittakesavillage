@@ -19,7 +19,9 @@ import { NotificationQuest } from "../src/NotificationQuest.js";
 
 const INVENTORY_SIZE = 32;
 const UPGRADE_MATERIAL_COST = 10;
-const HEAL_VILLAGER_COST = 100;
+const HEAL_VILLAGER_COST = 50;
+const APPLE_HAPPINESS_BOOST = 10;
+const SELL_PRICE = 10;
 
 let currentTurn = 0;
 
@@ -56,7 +58,7 @@ let lootAmount = 0;
 
 let healChances = 0;            // for doctor only
 let isUpgrading = false;        // for engineer only
-
+let isSelling = false;
 
 // event variarbles
 
@@ -83,7 +85,7 @@ let currentNotif = null;            // currently displayed notification
 // let notificationBox = {x: 16*8, y: 16*8, width: 16*26, height: 16*6}
 let notificationBox = {x: 16*34, y: 16*8, width: 0, height: 16*6}
 
-let rain = new Animation([img.rain0, img.rain1], 10);
+let rain = new Animation([img.rain0, img.rain1], 15);
 
 // buttons ////////////////////////////////////////////////////////////////
 
@@ -100,7 +102,8 @@ const button = {
     pickTree: new Button(1*16, 16*16, 6*16, 1.5*16, "green", "pick apple"),
     cutTree: new Button(1*16, 17.75*16, 6*16, 1.5*16, "red", "cut"),
 
-    upgradeMaterial: new Button(27*16, 7.25*16, 4*16, 1.5*16, "red", "🡅 $" + UPGRADE_MATERIAL_COST),
+    upgradeMaterial: new Button(22.5*16, 7.25*16, 4*16, 1.5*16, "red", "🡅 $" + UPGRADE_MATERIAL_COST),
+    sellItem: new Button(27*16, 7.25*16, 4*16, 1.5*16, "green", "sell"),
     upgradeFacility: new Button(1*16, 19.5*16, 6*16, 1.5*16, "red", "upgrade")
 };
 
@@ -112,7 +115,7 @@ socket.on("change_turn", (_currentTurn) => {
     button.endTurn.enabled = isCurrentTurn();
     refreshAssignButton();
 
-    button.collectBricks.enabled = factory.bricks > 0 && isCurrentTurn();
+    refreshCollectBrickButton();
     button.harvestCrop.enabled = isCurrentTurn();
     button.pickTree.enabled = isCurrentTurn();
     button.cutTree.enabled = isCurrentTurn();
@@ -276,7 +279,7 @@ socket.on("facilities", (_facilities) => {
 
 socket.on("factory", (_factory) => {
     factory = _factory;
-    button.collectBricks.enabled = factory.bricks > 0;
+    refreshCollectBrickButton();
 
     if(selectedInfoType("factory"))
         infoSelected = factory;
@@ -315,9 +318,8 @@ socket.on("trees", (_trees, _treesUnlocked) => {
     if(selectedInfoType("tree"))
     {
         infoSelected = trees.find(obj => obj.id == infoSelected.id);
-        let tree = infoSelected;
-        button.pickTree.enabled = tree.daysLeft == 0 && !tree.cut;
-        button.cutTree.enabled = !tree.cut;
+        refreshPickTreeButton();
+        refreshCutTreeButton();
     }
 });
 
@@ -334,8 +336,8 @@ socket.on("villager_flee", (_villager) => {
     triggerNotifications();
 });
 
-socket.on("quest_complete", (_villager) => {
-    notifications.push(new NotificationQuest(_villager));
+socket.on("quest_complete", (_villager, _playerName) => {
+    notifications.push(new NotificationQuest(_villager, _playerName, _playerName == playerName));
     triggerNotifications();
 });
 
@@ -469,7 +471,7 @@ function onClick(e)
             if(!heldItemStack && mouseInteract(factory))
             {
                 infoSelected = factory;
-                button.collectBricks.enabled = factory.bricks > 0;
+                refreshCollectBrickButton();
                 return;
             }
 
@@ -576,9 +578,17 @@ function onClick(e)
     {
         if(!isCurrentTurn() || lootAmount > 0) return;
 
+        if(buttonClick(button.sellItem))
+        {
+            isSelling = true;
+            button.sellItem.enabled = false;
+            button.upgradeMaterial.enabled = false;
+        }
+
         if(buttonClick(button.upgradeMaterial))
         {
             isUpgrading = true;
+            button.sellItem.enabled = false;
             button.upgradeMaterial.enabled = false;
         }
 
@@ -595,14 +605,22 @@ function onClick(e)
 
             if(mouseInteract(obj))
             {
-                if(!isUpgrading)
+                if(!isUpgrading && !isSelling)
                 {
                     heldItemStack = inventory[i];
                     closeInventory();
                 }
-                else if(inventory[i].item.type == "material")
+                else if(isSelling && inventory[i].item.type == "food")
+                {
+                    sellItem(inventory[i]);
+                    button.sellItem.enabled = true;
+                    button.upgradeMaterial.enabled = budget >= UPGRADE_MATERIAL_COST;
+                    isSelling = false;
+                }
+                else if(isUpgrading && inventory[i].item.type == "material")
                 {
                     upgradeMaterial(inventory[i]);
+                    button.sellItem.enabled = true;
                     button.upgradeMaterial.enabled = budget >= UPGRADE_MATERIAL_COST;
                     isUpgrading = false;
                 }
@@ -640,7 +658,7 @@ function onClick(e)
     {
         for(let i = 0; i < shop.length; i++)
         {
-            if(isCurrentTurn && mouseInteract(shop[i]))
+            if(isCurrentTurn() && mouseInteract(shop[i]))
             {
                 purchase(shop[i]);
                 break;
@@ -653,7 +671,7 @@ function onKeyDown(e)
 {
     if(getActiveWindow() == "notification") return;
 
-    switch(e.key)
+    switch(e.key.toLowerCase())
     {
         case 'e':
         {
@@ -680,7 +698,7 @@ function onMouseDown(e)
 {
     if(e.button == 2) // right click
     {
-        if(getActiveWindow() == "main")
+        if(isCurrentTurn() && getActiveWindow() == "main")
         {
             for(let i = 0; i < villagers.length; i++)
             {
@@ -950,7 +968,7 @@ function feedVillager(villager)
         villager.hunger = Math.min(villager.hunger + 2, 5);
 
     if(heldItemStack.item.id == "apple")
-        villager.happiness += 20;
+        villager.happiness += APPLE_HAPPINESS_BOOST;
 
     socket.emit("villager", roomId, villager);
 
@@ -1030,6 +1048,12 @@ function useItem(itemStack)
     }
 }
 
+function sellItem(itemStack)
+{
+    useItem(itemStack);
+    spendBudget(-(SELL_PRICE * facilities["housing"].level));
+}
+
 function upgradeMaterial(itemStack)
 {
     spendBudget(UPGRADE_MATERIAL_COST);
@@ -1078,7 +1102,11 @@ function collectLoot(index)
 
 function purchase(shopItem)
 {
-    socket.emit("budget", roomId, budget - Math.floor(shopItem.price * priceMultiplier));
+    let price = Math.floor(shopItem.price * priceMultiplier);
+
+    if(budget < price) return;
+
+    socket.emit("budget", roomId, budget - price);
     socket.emit("purchase", roomId, socketId, shopItem);
 }
 
@@ -1170,6 +1198,39 @@ function refreshUpgradeFacilityButton()
 
         button.upgradeFacility.enabled = enable;
     }
+}
+
+function refreshPickTreeButton()
+{
+    if(!isCurrentTurn() || !selectedInfoType("tree"))
+    {
+        button.pickTree.enabled = false;
+        return;
+    }
+
+    button.pickTree.enabled = infoSelected.daysLeft == 0 && !infoSelected.cut;
+}
+
+function refreshCutTreeButton()
+{
+    if(!isCurrentTurn() || !selectedInfoType("tree"))
+    {
+        button.cutTree.enabled = false;
+        return;
+    }
+
+    button.cutTree.enabled = !infoSelected.cut;
+}
+
+function refreshCollectBrickButton()
+{
+    if(!isCurrentTurn() || !selectedInfoType("factory"))
+    {
+        button.collectBricks.enabled = false;
+        return;
+    }
+
+    button.collectBricks.enabled = factory.bricks > 0 && isCurrentTurn();
 }
 
 
@@ -1278,7 +1339,7 @@ function drawVillagers()
 
         // draw food popup
 
-        if(isHoldingFood() && !villager.fed && villager.hunger < 5)
+        if(isHoldingFood())
         {
             let obj = {
                 interactBox: {
@@ -1291,13 +1352,25 @@ function drawVillagers()
 
             ctx.save();
 
-            if(mouseInteract(obj))
+            let canFeed = !villager.fed && villager.hunger < 5;
+
+            // if villager can be fed
+            if(canFeed)
             {
-                ctx.fillStyle = "lightgray";
-                setLabel(null);
+                if(mouseInteract(obj))
+                {
+                    ctx.fillStyle = "lightgray";
+                    setLabel(null);
+                }
+                else
+                    ctx.fillStyle = "white";
             }
             else
-                ctx.fillStyle = "white";
+            {
+                ctx.globalAlpha = 0.75;
+                ctx.fillStyle = "gray";
+            }
+            
 
             ctx.fillRect(
                 obj.interactBox.x * SCALE,
@@ -1309,14 +1382,15 @@ function drawVillagers()
                 (villager.position.y * 16 - 20) * SCALE,
                 12*SCALE, 12*SCALE);
 
-            ctx.strokeStyle = "black";
-            ctx.lineWidth = 2;
-            ctx.strokeRect(
-                obj.interactBox.x * SCALE,
-                obj.interactBox.y * SCALE,
-                16*SCALE, 16*SCALE);
-
-            
+            if(canFeed)
+            {
+                ctx.strokeStyle = "black";
+                ctx.lineWidth = 2;
+                ctx.strokeRect(
+                    obj.interactBox.x * SCALE,
+                    obj.interactBox.y * SCALE,
+                    16*SCALE, 16*SCALE);
+            }
 
             ctx.restore();
         }
@@ -1450,7 +1524,7 @@ function drawTrees()
 
 function drawRain()
 {
-    if(event.id != "rainy_day") return;
+    if(!event || event.id != "rainy_day") return;
 
     ctx.globalAlpha = 0.25;
     let image = rain.getFrame();
@@ -1870,6 +1944,7 @@ function drawInventory()
     ctx.fillStyle = "black";
     ctx.fillText("inventory", 16*11*SCALE, 16*7.5*SCALE);
 
+    drawButton(button.sellItem);
     if(role == "engineer") drawButton(button.upgradeMaterial);
 
     for(let i = 0; i < INVENTORY_SIZE; i++)
@@ -1900,7 +1975,7 @@ function drawInventory()
 
         if(i < inventory.length)
         {
-            if(isUpgrading && inventory[i].item.type != "material")
+            if((isUpgrading && inventory[i].item.type != "material") || (isSelling && inventory[i].item.type != "food"))
             {
                 ctx.fillStyle = "#888888";
                 ctx.fillRect(
@@ -1910,7 +1985,9 @@ function drawInventory()
                     obj.interactBox.height * SCALE);
             }
 
-            if((!isUpgrading || inventory[i].item.type == "material") && mouseInteract(obj))
+            if(((!isUpgrading && !isSelling)
+                || (isUpgrading && inventory[i].item.type == "material")
+                || (isSelling && inventory[i].item.type == "food")) && mouseInteract(obj))
             {
                 ctx.fillStyle = "#EEEEEE";
                 ctx.fillRect(
@@ -1949,6 +2026,14 @@ function drawInventory()
                 ctx.fillStyle = "orange";
                 ctx.fillText("★",
                     16*(11 + ((i % 8) + 1) * INVENTORY_BOX_SIZE - 0.25)*SCALE,
+                    16*(9 + (Math.floor(i / 8) + 1) * INVENTORY_BOX_SIZE - 1.75)*SCALE);
+            }
+
+            if(inventory[i].item.type == "food" && isSelling)
+            {
+                ctx.fillStyle = "green";
+                ctx.fillText(SELL_PRICE * facilities["housing"].level,
+                    16*(9.75 + ((i % 8) + 1) * INVENTORY_BOX_SIZE - 0.25)*SCALE,
                     16*(9 + (Math.floor(i / 8) + 1) * INVENTORY_BOX_SIZE - 1.75)*SCALE);
             }
         }
@@ -2056,9 +2141,12 @@ function drawNotification()
 
     ctx.globalAlpha = 1;
 
-    ctx.save();
-    currentNotif.draw(ctx, SCALE);
-    ctx.restore();
+    if(nb.x <= 16*8)
+    {
+        ctx.save();
+        currentNotif.draw(ctx, SCALE);
+        ctx.restore();
+    }
 }
 
 export function draw()

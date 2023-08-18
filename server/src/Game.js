@@ -57,10 +57,10 @@ class Game {
         this.factory = new Factory();
 
         this.facilities = {
-            "water": new Facility(50),
-            "farming": new Facility(50),
-            "education": new Facility(50),
-            "housing": new Facility(50),
+            "water": new Facility(20),
+            "farming": new Facility(20),
+            "education": new Facility(20),
+            "housing": new Facility(20),
             "power": new Facility(20)
         };
     }
@@ -301,12 +301,12 @@ class Game {
         switch(facility.level)
         {
             case 2:
-                facility.progressMax = 80;
+                facility.progressMax = 50;
                 facility.cost["brick"] = 5;
                 facility.cost["steel"] = 1;
                 break;
             case 3:
-                facility.progressMax = 100;
+                facility.progressMax = 80;
                 facility.cost["brick"] = 8;
                 facility.cost["steel"] = 2;
                 break;
@@ -356,27 +356,27 @@ class Game {
                 case 1:
                     baseProgress = 2;
                     leastEffectiveMult = 0.75;
-                    mostEffectiveMult = 1.5;
+                    mostEffectiveMult = 1.7;        // 1.5
                     break;
                 case 2:
                     baseProgress = 3;
                     leastEffectiveMult = 0.8;
-                    mostEffectiveMult = 1.6;
+                    mostEffectiveMult = 1.8;        // 1.6
                     break;
                 case 3:
                     baseProgress = 4;
                     leastEffectiveMult = 0.85;
-                    mostEffectiveMult = 1.7;
+                    mostEffectiveMult = 1.9;        // 1.7
                     break;
                 case 4:
                     baseProgress = 5;
                     leastEffectiveMult = 0.9;
-                    mostEffectiveMult = 1.85;
+                    mostEffectiveMult = 2;       // 1.85
                     break;
                 case 5:
                     baseProgress = 8;
                     leastEffectiveMult = 1;
-                    mostEffectiveMult = 2;
+                    mostEffectiveMult = 2.2;          // 2
                     break;
                 default:
                     break;
@@ -478,19 +478,61 @@ class Game {
             else if(villager.currentTask == villager.leastFavoriteTask)
                 villager.happiness -= 5;
 
+            // if not fed
+            if(!villager.fed)
+                villager.happiness -= 5;
+
+            if(villager.happiness > 100)
+                villager.happiness = 100;
+
             // subtract hunger
             if(villager.hunger > 0) villager.hunger--;
 
             villager.fed = false;
 
             // chance of sickness
-            if(villager.currentTask != "power" && Math.random() < global.SICK_CHANCE)
+            if(villager.currentTask != "power" && global.SICK_CHANCE > 0)
             {
-                villager.sick = true;
-                villager.labelColor = "rgb(0,191,0)";
+                let sick = false;
+                if(villager.hunger == 0)
+                    sick = Math.random() < global.HUNGRY_SICK_CHANCE;
+                else
+                    sick = Math.random() < global.SICK_CHANCE;
+
+                if(sick)
+                {
+                    villager.sick = true;
+                    villager.labelColor = "rgb(0,191,0)";
+                }
             }
 
+            // mutation
+            if(this.day != 1 && this.day % 5 == 1)
+                this.mutateVillager(villager);
+
         });
+    }
+
+    mutateVillager(villager)
+    {
+        let mutationChance = 0.25;
+
+        if(Math.random() < mutationChance)
+        {
+            villager.mostEffectiveTask = Villager.generateTask();
+            villager.leastEffectiveTask = Villager.generateLeastEffectiveTask(villager.mostEffectiveTask);
+        }
+
+        else if(Math.random() < mutationChance)
+        {
+            villager.mostFavoriteTask = Villager.generateTask();
+            villager.leastFavoriteTask = Villager.generateLeastFavoriteTask(villager.mostFavoriteTask);
+        }
+
+        else if(Math.random() < mutationChance)
+        {
+            villager.favoriteFood = Villager.generateFavoriteFood();
+        }
     }
 
     changeTurn()

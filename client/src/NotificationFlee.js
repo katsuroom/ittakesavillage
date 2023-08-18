@@ -7,7 +7,7 @@ export class NotificationFlee extends Notification {
     constructor(villager)
     {
         let text = "a villager has fled.";
-        super(text, 2000);
+        super(text, 2500);
 
         this.villager = villager;
     }

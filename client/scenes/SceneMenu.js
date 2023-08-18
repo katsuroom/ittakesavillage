@@ -7,7 +7,8 @@ import { TextField } from "../src/TextField.js";
 
 
 const buttons = {
-    hostGame: new Button(7*16, 4*16, 6*16, 2*16, "pink", "host game"),
+    hostGame: new Button(3*16, 4*16, 6*16, 2*16, "pink", "host game"),
+    reconnect: new Button(10*16, 4*16, 6*16, 2*16, "pink", "reconnect"),
     joinGame: new Button(7*16, 11*16, 6*16, 2*16, "pink", "join game")
 };
 
@@ -41,6 +42,18 @@ function onClick(e)
         socket.emit("host_game", playerName);
         sm.loadScene(sm.SCENE.lobby);
         return;
+    }
+
+    if(buttonClick(buttons.reconnect))
+    {
+        // reconnect previous game
+        if(localStorage.prevGame)
+        {
+            let prevGame = JSON.parse(localStorage.prevGame);
+            console.log(prevGame);
+            roomId = prevGame.roomId;
+            socket.emit("reconnect", prevGame.roomId, prevGame.socketId);
+        }
     }
 
     if(buttonClick(buttons.joinGame))
@@ -108,15 +121,7 @@ export function init()
     canvas.addEventListener("click", onClick);
     window.addEventListener("keydown", onKeyDown);
 
-
-    // reconnect previous game
-    if(localStorage.prevGame)
-    {
-        let prevGame = JSON.parse(localStorage.prevGame);
-        console.log(prevGame);
-        roomId = prevGame.roomId;
-        socket.emit("reconnect", prevGame.roomId, prevGame.socketId);
-    }
+    buttons.reconnect.enabled = localStorage.prevGame != null;
 }
 
 export function exit()
@@ -174,6 +179,7 @@ export function draw()
     drawTextField(textFields.roomCode);
     drawButton(buttons.hostGame);
     drawButton(buttons.joinGame);
+    drawButton(buttons.reconnect);
 
     ctx.fillStyle = "red";
     ctx.fillText(errorMessage, 10*16*SCALE, 13.5*16*SCALE);
