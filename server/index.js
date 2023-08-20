@@ -295,7 +295,11 @@ function reconnect(socket, _roomId, _socketId)
     {
         let player = game.players.find(player => player.id == _socketId);
 
-        if(!player) return;
+        if(!player)
+        {
+            console.log("Reconnect failed: could not find player in game " + _roomId);
+            return;
+        }
 
         player.id = socket.id;
         player.connected = true;
@@ -361,6 +365,11 @@ function removeVillagerFromFacility(villager, game)
             }
         }
     }
+}
+
+function villagerFlee(villager, game)
+{
+    game.paths[villager.position.y][villager.position.x] = "-";
 }
 
 function villagerSick(villager)
@@ -534,9 +543,11 @@ function eventEnd(game, event)
                     removeVillagerFromFacility(villager, game);
 
                     game.villagers.splice(index, 1);
+                    villagerFlee(villager, game);
 
                     game.players.forEach(player => {
                         io.sockets.to(player.id).emit("villager_flee", villager);
+                        io.sockets.to(player.id).emit("paths", game.paths);
                     });
                 }
                 break;
@@ -840,6 +851,7 @@ io.on("connection", (socket) => {
                 removeVillagerFromFacility(villager, game);
                 game.villagers.splice(i, 1);
                 fleeingVillagers.push(villager);
+                villagerFlee(villager, game);
             }
         }
 
@@ -852,6 +864,10 @@ io.on("connection", (socket) => {
             fleeingVillagers.forEach(villager => {
                 io.sockets.to(player.id).emit("villager_flee", villager);
             });
+
+            if(fleeingVillagers.length > 0)
+                io.sockets.to(player.id).emit("paths", game.paths);
+
 
             if(changeSeason)
                 io.sockets.to(player.id).emit("season", game.season, game.nextSeason);
@@ -917,6 +933,38 @@ io.on("connection", (socket) => {
         game.budget = _budget;
         game.players.forEach(player => {
             io.sockets.to(player.id).emit("budget", game.budget);
+        });
+    });
+
+    socket.on("add_progress", (_roomId, _facility, _amount) => {
+        let game = games[_roomId];
+        let facility = game.facilities[_facility.label];
+
+        facility.progress += _amount;
+
+        let upgrade = false;
+        while(facility.progress >= facility.progressMax)
+        {
+            upgrade = true;
+
+            let remaining = facility.progress - facility.progressMax;
+            game.upgradeFacility(facility);
+            facility.progress += remaining;
+
+            checkQuest(socket, game);
+        }
+
+        game.players.forEach(player => {
+            io.sockets.to(player.id).emit("facility", facility);
+
+            if(upgrade)
+            {
+                if(facility.label == "water" && facility.level < 5)
+                io.sockets.to(player.id).emit("farm", game.farm);
+
+                if(facility.label == "farming")
+                    io.sockets.to(player.id).emit("farm", game.farm);
+            }
         });
     });
 

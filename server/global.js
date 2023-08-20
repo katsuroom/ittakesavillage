@@ -17,8 +17,8 @@ const TREE_GROWTH_TIME = 10;
 const FARMLAND_UNLOCKED = false;
 const FARMLAND_LOCKED = true;
 
-const SICK_CHANCE = 0.10;
-const HUNGRY_SICK_CHANCE = 0.50;
+const SICK_CHANCE = 0.05;
+const HUNGRY_SICK_CHANCE = 0.25;
 
 const DEATH_THRESHOLD = 40;
 const FLOOD_DAMAGE = 20;
@@ -46,9 +46,9 @@ ITEMS.potatoSeed = new Seed("potato seed", "potato_seed", ITEMS.potato);
 ITEMS.carrotSeed = new Seed("carrot seed", "carrot_seed", ITEMS.carrot);
 
 const QUESTS = [
-    new Quest("happiness", 70, "happiness = 70"),
     new Quest("happiness", 80, "happiness = 80"),
     new Quest("happiness", 90, "happiness = 90"),
+    new Quest("happiness", 100, "happiness = 100"),
 ];
 
 ["water", "farming", "education", "housing"].forEach(facility => {

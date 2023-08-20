@@ -155,10 +155,10 @@ class Game {
         this.facilities["power"].labelColor = "#FFFF00";
         this.facilities["power"].interactBox = {x: 16*16, y: 16*2, width: 64, height: 16*3};
 
-        Object.values(this.facilities).forEach(facility => {
-            facility.cost["brick"] = 3;
-            facility.cost["steel"] = 0;
-        });
+        // Object.values(this.facilities).forEach(facility => {
+        //     facility.cost["brick"] = 3;
+        //     facility.cost["steel"] = 0;
+        // });
     }
 
     initFactory()
@@ -216,17 +216,14 @@ class Game {
             startingItems.push(item);
         }
 
-        startingItems.push(global.ITEMS.steel);
-        startingItems.push(global.ITEMS.steel);
-        startingItems.push(global.ITEMS.steel);
-        startingItems.push(global.ITEMS.steel);
-        startingItems.push(global.ITEMS.brick);
-        startingItems.push(global.ITEMS.brick);
-        startingItems.push(global.ITEMS.brick);
-        startingItems.push(global.ITEMS.brick);
-        // this.inventory.push(new ItemStack(global.ITEMS.wood, 4));
-        // this.inventory.push(new ItemStack(global.ITEMS.brick, 4));
-        // this.inventory.push(new ItemStack(global.ITEMS.steel, 4));
+        // startingItems.push(global.ITEMS.steel);
+        // startingItems.push(global.ITEMS.steel);
+        // startingItems.push(global.ITEMS.steel);
+        // startingItems.push(global.ITEMS.steel);
+        // startingItems.push(global.ITEMS.brick);
+        // startingItems.push(global.ITEMS.brick);
+        // startingItems.push(global.ITEMS.brick);
+        // startingItems.push(global.ITEMS.brick);
 
         return startingItems;
     }
@@ -302,18 +299,18 @@ class Game {
         {
             case 2:
                 facility.progressMax = 50;
-                facility.cost["brick"] = 5;
-                facility.cost["steel"] = 1;
+                // facility.cost["brick"] = 5;
+                // facility.cost["steel"] = 1;
                 break;
             case 3:
                 facility.progressMax = 80;
-                facility.cost["brick"] = 8;
-                facility.cost["steel"] = 2;
+                // facility.cost["brick"] = 8;
+                // facility.cost["steel"] = 2;
                 break;
             case 4:
                 facility.progressMax = 100;
-                facility.cost["brick"] = 10;
-                facility.cost["steel"] = 5;
+                // facility.cost["brick"] = 10;
+                // facility.cost["steel"] = 5;
                 break;
             case 5:
                 break;
@@ -343,6 +340,9 @@ class Game {
 
     updateFacilityProgress()
     {
+        if(this.facilities["power"].assignedVillagers.length == 0)
+            return;
+
         this.villagers.forEach(villager => {
             
             if(!villager.currentTask) return;

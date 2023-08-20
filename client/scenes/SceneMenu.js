@@ -52,6 +52,7 @@ function onClick(e)
             let prevGame = JSON.parse(localStorage.prevGame);
             console.log(prevGame);
             roomId = prevGame.roomId;
+            inventory = prevGame.inventory;
             socket.emit("reconnect", prevGame.roomId, prevGame.socketId);
         }
     }

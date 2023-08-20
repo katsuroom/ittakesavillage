@@ -28,6 +28,7 @@ export let playerName = "";
 export let role = "";
 export let roomId = "";
 export let socketId = "";
+export let inventory = [];             // array of ItemStack objects in inventory
 
 
 // functions ////////////////////////////////////////////////////////////////
