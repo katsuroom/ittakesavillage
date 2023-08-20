@@ -20,6 +20,7 @@ import { NotificationQuest } from "../src/NotificationQuest.js";
 const INVENTORY_SIZE = 32;
 const UPGRADE_MATERIAL_COST = 10;
 const HEAL_VILLAGER_COST = 50;
+const CROP_GROWTH_TIME = 3;
 const APPLE_HAPPINESS_BOOST = 10;
 
 let currentTurn = 0;
@@ -854,7 +855,7 @@ function getSellPrice()     // int
 function plantCrop(farmland)
 {
     farmland.crop = heldItemStack.item;
-    farmland.daysLeft = (role == "farmer" ? 3 : 4) + cropGrowthModifier;
+    farmland.daysLeft = (role == "farmer" ? CROP_GROWTH_TIME - 1 : CROP_GROWTH_TIME) + cropGrowthModifier;
     farmland.label = farmland.daysLeft + " days";
     socket.emit("farm", roomId, farm);
 
@@ -974,7 +975,7 @@ function feedVillager(villager)
     if(heldItemStack.item.id == villager.favoriteFood)
         villager.hunger = 5;
     else
-        villager.hunger = Math.min(villager.hunger + 2, 5);
+        villager.hunger = Math.min(villager.hunger + 2, 4);
 
     if(heldItemStack.item.id == "apple")
         villager.happiness += APPLE_HAPPINESS_BOOST;
