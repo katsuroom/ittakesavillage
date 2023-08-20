@@ -1667,7 +1667,7 @@ function drawInfoPanel()
         {
             let facility = infoSelected;
 
-            ctx.font = '32px Kenney Mini Square';
+            ctx.font = "32px Kenney Mini Square";
             ctx.fillStyle = "black";
             ctx.textAlign = "center";
 
