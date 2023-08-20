@@ -1688,11 +1688,11 @@ function drawInfoPanel()
             }
             else
             {
-                ctx.fillText(facility.label, 16*4*SCALE, 16*4*SCALE);
+                ctx.fillText(facility.label, 16*4*SCALE, 16*7*SCALE);
 
                 ctx.font = '16px Kenney Mini Square';
-                ctx.fillText("level: " + facility.level, 16*4*SCALE, 16*6*SCALE);
-                ctx.fillText("progress: " + (+facility.progress.toFixed(2)) + " / " + facility.progressMax, 16*4*SCALE, 16*7*SCALE);
+                ctx.fillText("level: " + facility.level, 16*4*SCALE, 16*9*SCALE);
+                ctx.fillText("progress: " + (+facility.progress.toFixed(2)) + " / " + facility.progressMax, 16*4*SCALE, 16*10*SCALE);
 
                 // ctx.fillStyle = facility.progress == facility.progressMax ? "black" : "gray";
                 // ctx.fillText("upgrade cost", 16*4*SCALE, 16*9*SCALE);
