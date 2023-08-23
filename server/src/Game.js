@@ -61,7 +61,7 @@ class Game {
             "farming": new Facility(20),
             "education": new Facility(20),
             "housing": new Facility(20),
-            "power": new Facility(20)
+            "power": new Facility(10)
         };
     }
 
@@ -349,34 +349,32 @@ class Game {
 
             if(villager.currentTask == "power") return;
 
-            let baseProgress, leastEffectiveMult, mostEffectiveMult = 0;
+            if(this.facilities[villager.currentTask].level >= 5) return;
+
+            let baseProgress = 2;
+            let leastEffectiveMult, mostEffectiveMult = 0;
 
             switch(this.facilities["education"].level)
             {
                 case 1:
-                    baseProgress = 2;
                     leastEffectiveMult = 0.75;
-                    mostEffectiveMult = 1.7;        // 1.5
+                    mostEffectiveMult = 1.25;        // 1.5
                     break;
                 case 2:
-                    baseProgress = 3;
-                    leastEffectiveMult = 0.8;
-                    mostEffectiveMult = 1.8;        // 1.6
+                    leastEffectiveMult = 0.9;
+                    mostEffectiveMult = 1.5;        // 1.6
                     break;
                 case 3:
-                    baseProgress = 4;
-                    leastEffectiveMult = 0.85;
-                    mostEffectiveMult = 1.9;        // 1.7
+                    leastEffectiveMult = 1;
+                    mostEffectiveMult = 1.75;        // 1.7
                     break;
                 case 4:
-                    baseProgress = 5;
-                    leastEffectiveMult = 0.9;
+                    leastEffectiveMult = 1.25;
                     mostEffectiveMult = 2;       // 1.85
                     break;
                 case 5:
-                    baseProgress = 8;
-                    leastEffectiveMult = 1;
-                    mostEffectiveMult = 2.2;          // 2
+                    leastEffectiveMult = 1.5;
+                    mostEffectiveMult = 2.5;          // 2
                     break;
                 default:
                     break;
@@ -479,8 +477,8 @@ class Game {
                 villager.happiness -= 5;
 
             // if not fed
-            if(!villager.fed)
-                villager.happiness -= 5;
+            // if(!villager.fed)
+            //     villager.happiness -= 5;
 
             if(villager.happiness > 100)
                 villager.happiness = 100;

@@ -22,8 +22,11 @@ const UPGRADE_MATERIAL_COST = 10;
 const HEAL_VILLAGER_COST = 50;
 const CROP_GROWTH_TIME = 3;
 const APPLE_HAPPINESS_BOOST = 10;
+const HARVEST_SEED_CHANCE = 0.2;
+const ACTION_POINTS = 10;
 
 let currentTurn = 0;
+let actionPoints = 0;
 
 let day = 0;
 let season = "";
@@ -89,7 +92,14 @@ let currentNotif = null;            // currently displayed notification
 // let notificationBox = {x: 16*8, y: 16*8, width: 16*26, height: 16*6}
 let notificationBox = {x: 16*34, y: 16*8, width: 0, height: 16*6}
 
-let rain = new Animation([img.rain0, img.rain1], 15);
+let rainAnimation = new Animation([img.rain0, img.rain1], 15);
+let cloudShadows = [];
+
+let powerOnFrames = [];
+for(let i = 1; i <= 26; i++)
+    powerOnFrames.push(img["power_on_" + i]);
+
+let powerOnAnimation = new Animation(powerOnFrames, 5);
 
 // buttons ////////////////////////////////////////////////////////////////
 
@@ -115,6 +125,7 @@ const button = {
 
 socket.on("change_turn", (_currentTurn) => {
     currentTurn = _currentTurn;
+    actionPoints = ACTION_POINTS;
 
     button.endTurn.enabled = isCurrentTurn();
     refreshAssignButton();
@@ -170,7 +181,7 @@ socket.on("purchase_npc", (_npcs) => {
         }
     }
 
-    closeShop();
+    // closeShop();
     refreshShop();
 
 });
@@ -197,6 +208,9 @@ socket.on("season", (_season, _nextSeason) => {
     season = _season;
     nextSeason = _nextSeason;
 
+    if(season == "game end")
+        gameOver("game end");
+
     notifications.push(new NotificationSeason(season));
     triggerNotifications();   
 });
@@ -206,7 +220,31 @@ socket.on("event", (_event, _nextEvent) => {
     if(!event || event.duration == 1)
     {
         notifications.push(new NotificationEvent(_event, img["event_" + _event.id]));
-        triggerNotifications();   
+        triggerNotifications();
+
+        cloudShadows = [];
+
+        if(_event.id == "cloudy_day")
+        {
+            for(let i = 0; i < 8; i++)
+            {
+                let x = Math.random() * 16*22 + (8*16);
+                let y = Math.random() * 16*22;
+                let type = Math.floor(Math.random() * (img.cloudShadows.width / 64 + 1));
+                cloudShadows.push({x, y, type});
+            }
+        }
+        else if(_event.id == "flood")
+        {
+            for(let i = 0; i < 8; i++)
+            {
+                let x = Math.random() * 16*22 + (8*16);
+                let y = Math.random() * 16*22;
+                let type = Math.floor(Math.random() * (img.puddles.width / 16 + 1));
+                cloudShadows.push({x, y, type});
+            }
+        }
+        
     }
 
     event = _event;
@@ -215,6 +253,9 @@ socket.on("event", (_event, _nextEvent) => {
 
 socket.on("budget", (_budget) => {
     budget = _budget;
+
+    if(budget <= 0)
+        gameOver("GAME OVER: Budget hit 0.");
 });
 
 socket.on("villager", (_villager) => {
@@ -235,6 +276,9 @@ socket.on("villager", (_villager) => {
 });
 
 socket.on("villagers", (_villagers) => {
+
+    if(day > 1 && villagers.length < 4)
+        gameOver("GAME OVER: There are fewer than 4 villagers remaining.");
 
     // check for new villager arrival
     if(villagers.length > 0 && _villagers.length > villagers.length)
@@ -385,6 +429,7 @@ function onClick(e)
 
     if(selectedInfoType("factory") && buttonClick(button.collectBricks))
     {
+        actionPoints -= 2;
         socket.emit("collect_bricks", roomId);
         return;
     }
@@ -397,6 +442,7 @@ function onClick(e)
 
     if(selectedInfoType("facility") && buttonClick(button.upgradeFacility))
     {
+        actionPoints -= 5;
         socket.emit("upgrade_facility", roomId, infoSelected);
         return;
     }
@@ -814,6 +860,7 @@ function closeInventory()
         refreshAssignButton();
         refreshHealButton();
 
+        inventoryState = INVENTORY_STATES.normal;
         refreshInventoryButtons();
     }
 }
@@ -859,29 +906,46 @@ function plantCrop(farmland)
     farmland.label = farmland.daysLeft + " days";
     socket.emit("farm", roomId, farm);
 
+    actionPoints -= 1;
+
     useItem(heldItemStack);
 }
 
 function harvestCrop()
 {
     let farmland = infoSelected;
-    giveItem(farmland.crop.food, farmland.amount);
+    let amount = Math.floor(Math.random() * (farmland.amount - 2 + 1)) + 2;
+
+    giveItem(farmland.crop.food, amount);
+
+    let seedCount = 0;
+    for(let i = 0; i < amount; i++)
+    {
+        if(Math.random() < HARVEST_SEED_CHANCE)
+            seedCount++;
+    }
+
+    if(seedCount > 0)
+        giveItem(farmland.crop, seedCount);
 
     farmland.crop = null;
     farmland.label = "empty";
     socket.emit("farm", roomId, farm);
 
+    actionPoints -= 1;
     infoSelected = null;
 }
 
 function pickTree()
 {
+    actionPoints -= 1;
     let tree = infoSelected;
     socket.emit("pick_tree", roomId, tree.id);
 }
 
 function cutTree()
 {
+    actionPoints -= 1;
     let tree = infoSelected;
     socket.emit("cut_tree", roomId, tree.id);
 }
@@ -953,6 +1017,8 @@ function finishAssign(facility)
 
         // add villager to new facility
         facilities[facility.label].assignedVillagers.push(assigningVillager.name);
+
+        actionPoints -= 1;
     }
     else
         assigningVillager.currentTask = null;
@@ -991,6 +1057,8 @@ function healVillager()
     villager.sick = false;
     villager.labelColor = "white";
 
+    actionPoints -= 2;
+
     if(rolesPresent["doctor"] || npcPresent["doctor"])
     {
         healChances--;
@@ -1024,9 +1092,22 @@ function moveVillager()
 
 function useMaterial(facility)
 {
-    let progress = heldItemStack.item.progress;
-    useItem(heldItemStack);
-    socket.emit("add_progress", roomId, facility, progress);
+    if(facility.progress < facility.progressMax && facility.level < 5)
+    {
+        facility.progress += heldItemStack.item.progress;
+        if(facility.progress > facility.progressMax)
+            facility.progress = facility.progressMax;
+
+        useItem(heldItemStack);
+        socket.emit("facility", roomId, facility);
+
+        actionPoints -= 1;
+    }
+
+    // automatic upgrade
+    // let progress = heldItemStack.item.progress;
+    // useItem(heldItemStack);
+    // socket.emit("add_progress", roomId, facility, progress);
 
     // if(facility.progress == facility.progressMax)
     // {
@@ -1211,7 +1292,7 @@ function refreshUpgradeFacilityButton()
 {
     button.upgradeFacility.enabled = false;
     
-    if(isCurrentTurn() && selectedInfoType("facility") && infoSelected.label == "power" && infoSelected.progress == infoSelected.progressMax)
+    if(isCurrentTurn() && selectedInfoType("facility") && /* infoSelected.label == "power" && */ infoSelected.progress == infoSelected.progressMax)
     {
         let enable = true;
 
@@ -1221,10 +1302,15 @@ function refreshUpgradeFacilityButton()
         }
         else
         {
-            Object.values(infoSelected.cost).forEach(amount => {
-                if(amount > 0)
-                    enable = false;
-            });
+            if(infoSelected.level >= 5)
+                enable = false;
+            else
+            {
+                Object.values(infoSelected.cost).forEach(amount => {
+                    if(amount > 0)
+                        enable = false;
+                });
+            }
         }
 
         button.upgradeFacility.enabled = enable;
@@ -1489,7 +1575,9 @@ function drawFacilities()
 
     if(Object.keys(facilities).length > 0)
     {
-        ctx.drawImage(facilities["power"].level > 1 ? img.powerOn : img.powerOff, 16*16*SCALE, 16*1*SCALE, img.powerOff.width * SCALE, img.powerOn.height * SCALE);
+        // ctx.drawImage(facilities["power"].level > 1 ? img.powerOn : img.powerOff, 16*16*SCALE, 16*1*SCALE, img.powerOff.width * SCALE, img.powerOn.height * SCALE);
+        
+        ctx.drawImage(facilities["power"].level > 1 ? powerOnAnimation.getFrame() : img.powerOff, 16*16*SCALE, 16*1*SCALE, img.powerOff.width * SCALE, img.powerOn.height * SCALE);
 
         Object.values(facilities).forEach(facility => {
             if(getActiveWindow() == "main" && mouseInteract(facility))
@@ -1553,32 +1641,60 @@ function drawTrees()
     });
 }
 
-function drawRain()
+function drawEventEffects()
 {
-    if(!event || event.id != "rainy_day") return;
+    if(!event) return;
 
-    ctx.globalAlpha = 0.25;
-    let image = rain.getFrame();
-    ctx.drawImage(image, 0, 0, image.width/2, image.height/2, 16*8*SCALE, 0, image.width*SCALE, image.height*SCALE);
-    ctx.globalAlpha = 1;
+    if(event.id == "cloudy_day")
+    {
+        ctx.globalAlpha = 0.25;
+        cloudShadows.forEach(cloud => {
+            ctx.drawImage(img.cloudShadows, 64*cloud.type, 0, 64, 64, cloud.x*SCALE, cloud.y*SCALE, 64*SCALE, 64*SCALE);
+        });
+        ctx.globalAlpha = 1;
+    }
+    else if(event.id == "flood")
+    {
+        ctx.globalAlpha = 0.6;
+        cloudShadows.forEach(cloud => {
+            ctx.drawImage(img.puddles, 16*cloud.type, 0, 16, 16, cloud.x*SCALE, cloud.y*SCALE, 32*SCALE, 32*SCALE);
+        });
+        ctx.globalAlpha = 1;
+    }
+    else if(event.id == "rainy_day")
+    {
+        ctx.globalAlpha = 0.25;
+        let image = rainAnimation.getFrame();
+        ctx.drawImage(image, 0, 0, image.width/2, image.height/2, 16*8*SCALE, 0, image.width*SCALE, image.height*SCALE);
+        ctx.globalAlpha = 1;
+    }
 }
 
 function drawTitleBar()
 {
     ctx.save();
 
+    ctx.textAlign = "left";
     ctx.font = "20px Kenney Mini Square";
     ctx.textBaseline = "middle";
+    ctx.lineWidth = 4;
 
-    let text = "current turn:   " + players[currentTurn].name;
+    let currentTurnText = "current turn:   " + players[currentTurn].name;
     let x = 16*8.5*SCALE;
     let y = 16*0.5*SCALE;
-
-    ctx.lineWidth = 4;
     ctx.strokeStyle = "white";
-    ctx.strokeText(text, x, y);
+    ctx.strokeText(currentTurnText, x, y);
     ctx.fillStyle = "black";
-    ctx.fillText(text, x, y);
+    ctx.fillText(currentTurnText, x, y);
+
+    // ctx.textAlign = "right";
+    // let actionPointsText = "action points:   " + actionPoints;
+    // x = 16*33.5*SCALE;
+    // y = 16*0.5*SCALE;
+    // ctx.strokeStyle = "white";
+    // ctx.strokeText(actionPointsText, x, y);
+    // ctx.fillStyle = "black";
+    // ctx.fillText(actionPointsText, x, y);
 
     ctx.restore();
 }
@@ -1693,7 +1809,11 @@ function drawInfoPanel()
 
                 ctx.font = '16px Kenney Mini Square';
                 ctx.fillText("level: " + facility.level, 16*4*SCALE, 16*9*SCALE);
-                ctx.fillText("progress: " + (+facility.progress.toFixed(2)) + " / " + facility.progressMax, 16*4*SCALE, 16*10*SCALE);
+
+                if(facility.level < 5)
+                    ctx.fillText("progress: " + (+facility.progress.toFixed(2)) + " / " + facility.progressMax, 16*4*SCALE, 16*10*SCALE);
+                else
+                    ctx.fillText("max level", 16*4*SCALE, 16*10*SCALE);
 
                 // ctx.fillStyle = facility.progress == facility.progressMax ? "black" : "gray";
                 // ctx.fillText("upgrade cost", 16*4*SCALE, 16*9*SCALE);
@@ -1771,7 +1891,7 @@ function drawInfoPanel()
 
                 ctx.font = '16px Kenney Mini Square';
                 ctx.fillText(farmland.crop.food.name, 16*4*SCALE, 16*10*SCALE);
-                ctx.fillText("+" + farmland.amount, 16*4*SCALE, 16*11*SCALE);
+                ctx.fillText((farmland.amount > 2 ? "+ 2-" : "+ ") + farmland.amount, 16*4*SCALE, 16*11*SCALE);
 
                 if(farmland.daysLeft == 0)
                 {
@@ -1871,6 +1991,10 @@ function drawActionPanel()
         ctx.fillText("next event: ", 16*35*SCALE, 16*11*SCALE);
         ctx.fillText(nextEvent ? (nextEvent.type == 0 ? "good" : "bad") : "", 16*35*SCALE, 16*12*SCALE);
     }
+
+    ctx.font = "20px Kenney Mini Square";
+    ctx.fillText("action points:   " + actionPoints, 16*35*SCALE, 16*14*SCALE);
+
 
     drawButton(button.shop);
     drawButton(button.endTurn);
@@ -2199,7 +2323,7 @@ export function draw()
     
     drawPaths();
 
-    drawRain();
+    drawEventEffects();
 
     drawTitleBar();
     drawActionPanel();

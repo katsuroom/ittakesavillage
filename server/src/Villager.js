@@ -17,6 +17,7 @@ class Villager extends Interactable {
 
         this.shirtColor = this.generateShirtColor();
         this.hairColor = this.generateHairColor();
+        this.hairStyle = this.generateHairStyle();
 
         this.position = this.generatePosition(paths);
         this.label = this.name;
@@ -87,6 +88,12 @@ class Villager extends Interactable {
         let g = r * 0.75;
         let b = 0;
         return {r, g, b};
+    }
+
+    generateHairStyle()
+    {
+        let numHairStyles = 11;
+        return Math.floor(Math.random() * numHairStyles);
     }
 
     generatePosition(paths)         // {x, y}

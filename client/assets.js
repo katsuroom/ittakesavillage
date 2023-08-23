@@ -1,6 +1,7 @@
 function loadImage(src)
 {
     let newImage = new Image();
+    newImage.onload = function() {return;}
     newImage.src = src;
     return newImage;
 }
@@ -8,7 +9,6 @@ function loadImage(src)
 function loadFont(name, src)
 {
     let newFont = new FontFace(name, src);
-
     newFont.load().then(function(font){
         document.fonts.add(font);
     });
@@ -17,6 +17,7 @@ function loadFont(name, src)
 }
 
 export const img = {
+    menu:               loadImage("assets/art/menu.png"),
     background:         loadImage("assets/art/map.png"),
     villagerHair:       loadImage("assets/art/villager_hair.png"),
     villagerHeadarms:   loadImage("assets/art/villager_headarms.png"),
@@ -32,6 +33,8 @@ export const img = {
     treeBare:           loadImage("assets/art/tree_bare.png"),
     treeRipe:           loadImage("assets/art/tree_ripe.png"),
     treeStump:          loadImage("assets/art/tree_stump.png"),
+    cloudShadows:       loadImage("assets/art/cloud_shadows.png"),
+    puddles:            loadImage("assets/art/puddles.png"),
     rain0:              loadImage("assets/art/rain0.png"),
     rain1:              loadImage("assets/art/rain1.png"),
 
@@ -62,6 +65,10 @@ export const img = {
     "event_rainy_day":      loadImage("assets/art/event_rainy_day.png"),
     "event_summer_day":     loadImage("assets/art/event_summer_day.png")
 };
+
+// load power frames
+for(let i = 1; i <= 26; i++)
+    img["power_on_" + i] = loadImage("assets/art/power_on/power_on_" + i + ".png");
 
 
 const font = {

@@ -288,18 +288,33 @@ function disconnectGame(game, index)
     }
 }
 
+function checkReconnect(socket, _roomId, _socketId)
+{
+    let game = games[_roomId];
+    if(!game)
+    {
+        socket.emit("check_reconnect", false);
+        return false;
+    }
+
+    let player = game.players.find(player => player.id == _socketId);
+
+    if(!player)
+    {
+        socket.emit("check_reconnect", false);
+        return false;
+    }
+
+    socket.emit("check_reconnect", true);
+    return true;
+}
+
 function reconnect(socket, _roomId, _socketId)
 {
     let game = games[_roomId];
-    if(game)
+    if(checkReconnect(socket, _roomId, _socketId))
     {
         let player = game.players.find(player => player.id == _socketId);
-
-        if(!player)
-        {
-            console.log("Reconnect failed: could not find player in game " + _roomId);
-            return;
-        }
 
         player.id = socket.id;
         player.connected = true;
@@ -693,6 +708,7 @@ io.on("connection", (socket) => {
     socket.on("join_game", (_playerName, _roomId) => joinGame(socket, _playerName, _roomId));
     socket.on("select_role", (_roomId, _newRole) => selectRole(socket, _roomId, _newRole));
     socket.on("ready", (_roomId) => ready(socket, _roomId));
+    socket.on("check_reconnect", (_roomId, _socketId) => checkReconnect(socket, _roomId, _socketId));
     socket.on("reconnect", (_roomId, _socketId) => reconnect(socket, _roomId, _socketId));
 
     socket.on("farm", (_roomId, _farm) => {

@@ -138,6 +138,8 @@ export function drawVillager(villager, x, y, scale)
         16 * scale * SCALE, 32 * scale * SCALE);
 
     ctx.drawImage(img.villagerHair,
+        16 * villager.hairStyle, 0,
+        16, 32,
         x * SCALE,
         (y - 16) * SCALE,
         16 * scale * SCALE, 32 * scale * SCALE);
@@ -145,7 +147,7 @@ export function drawVillager(villager, x, y, scale)
     let hairData = ctx.getImageData(
         x * SCALE,
         (y - 16) * SCALE,
-        16 * scale * SCALE, 24 * scale * SCALE);
+        16 * scale * SCALE, 30 * scale * SCALE);
 
     for(let i = 0; i < hairData.data.length; i += 4)
     {
@@ -171,4 +173,10 @@ export function drawVillager(villager, x, y, scale)
     ctx.putImageData(hairData,
         x * SCALE,
         (y - 16) * SCALE);
+}
+
+export function gameOver(msg)
+{
+    canvas.style.visibility = "hidden";
+    setTimeout(() => alert(msg), 10);
 }

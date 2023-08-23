@@ -8,7 +8,7 @@ const {Option, RandomTable} = require("./src/RandomTable.js");
 const ShopItem = require("./src/ShopItem.js");
 
 
-const VILLAGER_COUNT = 12;
+const VILLAGER_COUNT = 8;
 const FARMLAND_COUNT = 32;
 
 const TREE_COUNT = 8;
@@ -17,7 +17,7 @@ const TREE_GROWTH_TIME = 10;
 const FARMLAND_UNLOCKED = false;
 const FARMLAND_LOCKED = true;
 
-const SICK_CHANCE = 0.05;
+const SICK_CHANCE = 0.08;
 const HUNGRY_SICK_CHANCE = 0.25;
 
 const DEATH_THRESHOLD = 40;
@@ -73,15 +73,15 @@ const SHOP = {
 }
 
 const SEASONS = [
-    new Season("spring", 20),
+    new Season("spring", 10),
     new Season("summer", 10),
-    new Season("autumn", 20),
+    new Season("autumn", 10),
     new Season("winter", 10),
     new Season("game end", 0)
 ];
 
 const EVENT_DURATION_MIN = 3;
-const EVENT_DURATION_MAX = 5;
+const EVENT_DURATION_MAX = 3;
 
 const EVENTS = {
     // neutral

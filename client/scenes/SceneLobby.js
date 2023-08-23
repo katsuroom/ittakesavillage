@@ -1,19 +1,21 @@
 import * as global from "../global.js";
 Object.entries(global).forEach(([name, exported]) => window[name] = exported);
 
+import {img} from "../assets.js";
+
 import * as sm from "../src/SceneManager.js";
 import { Button } from "../src/Button.js";
 
 let ready = false;
 
 const buttons = {
-    chief: new Button(13*16, 2*16, 6*16, 1.5*16, "blue", "chief"),
-    doctor: new Button(13*16, 4*16, 6*16, 1.5*16, "blue", "doctor"),
-    scientist: new Button(13*16, 6*16, 6*16, 1.5*16, "blue", "scientist"),
-    sociologist: new Button(13*16, 8*16, 6*16, 1.5*16, "blue", "sociologist"),
-    farmer: new Button(13*16, 10*16, 6*16, 1.5*16, "blue", "farmer"),
-    engineer: new Button(13*16, 12*16, 6*16, 1.5*16, "blue", "engineer"),
-    ready: new Button(1*16, 12*16, 6*16, 1.5*16, "red", "ready"),
+    chief: new Button(15*16, 4*16, 6*16, 1.5*16, "blue", "chief"),
+    doctor: new Button(15*16, 6*16, 6*16, 1.5*16, "blue", "doctor"),
+    scientist: new Button(15*16, 8*16, 6*16, 1.5*16, "blue", "scientist"),
+    sociologist: new Button(15*16, 10*16, 6*16, 1.5*16, "blue", "sociologist"),
+    farmer: new Button(15*16, 12*16, 6*16, 1.5*16, "blue", "farmer"),
+    engineer: new Button(15*16, 14*16, 6*16, 1.5*16, "blue", "engineer"),
+    ready: new Button(4*16, 16*16, 6*16, 1.5*16, "red", "ready"),
 };
 
 socket.on("refresh_lobby", (_players, _roomId) => {
@@ -81,26 +83,25 @@ export function exit()
 export function draw()
 {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img.menu, 0, 0, img.menu.width * SCALE, img.menu.height * SCALE);
 
-    ctx.lineWidth = 2;
-    ctx.strokeRect(0, 0, canvas.width, canvas.height);
-
-    ctx.font = '20px Kenney Mini Square';
+    ctx.font = "20px Arial Black";
     ctx.fillStyle = "black";
     ctx.textAlign = "left";
-    ctx.fillText("lobby: " + roomId, 1*16*SCALE, 1*16*SCALE);
+    ctx.fillText(("lobby: " + roomId).toUpperCase(), 2*16*SCALE, 2*16*SCALE);
 
+    ctx.font = "20px Kenney Mini Square";
     for(let i = 0; i < players.length; i++)
     {
         ctx.fillStyle = "black";
-        ctx.fillText(players[i].name, 1*16*SCALE, (3 + i*1.5)*16*SCALE);
-        ctx.fillStyle = "orange";
-        ctx.fillText(players[i].role, 8*16*SCALE, (3 + i*1.5)*16*SCALE);
+        ctx.fillText(players[i].name, 4*16*SCALE, (5 + i*1.5)*16*SCALE);
+        ctx.fillStyle = "gray";
+        ctx.fillText(players[i].role, 11*16*SCALE, (5 + i*1.5)*16*SCALE);
 
         if(players[i].ready)
         {
             ctx.fillStyle = "blue";
-            ctx.fillText("!", 0.5*16*SCALE, (3 + i*1.5)*16*SCALE);
+            ctx.fillText("!", 3.5*16*SCALE, (7 + i*1.5)*16*SCALE);
         }
     }
 

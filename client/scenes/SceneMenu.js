@@ -1,25 +1,29 @@
 import * as global from "../global.js";
 Object.entries(global).forEach(([name, exported]) => window[name] = exported);
 
+import {img} from "../assets.js";
+
 import * as sm from "../src/SceneManager.js";
 import { Button } from "../src/Button.js";
 import { TextField } from "../src/TextField.js";
 
 
 const buttons = {
-    hostGame: new Button(3*16, 4*16, 6*16, 2*16, "pink", "host game"),
-    reconnect: new Button(10*16, 4*16, 6*16, 2*16, "pink", "reconnect"),
-    joinGame: new Button(7*16, 11*16, 6*16, 2*16, "pink", "join game")
+    hostGame: new Button(4*16, 10*16, 6*16, 2*16, "pink", "host game"),
+    reconnect: new Button(4*16, 13*16, 6*16, 2*16, "pink", "reconnect"),
+    joinGame: new Button(15*16, 13*16, 6*16, 2*16, "pink", "join game")
 };
 
 const textFields = {
-    playerName: new TextField(5*16, 2*16, 10*16, 1*16, "player name", 20),
-    roomCode: new TextField(7*16, 9*16, 6*16, 1*16, "room code", 4),
+    playerName: new TextField(8*16, 7*16, 10*16, 1*16, "player name", 20),
+    roomCode: new TextField(15*16, 11*16, 6*16, 1*16, "room code", 4),
 };
 
 let selectedTextField = null;
 
 let errorMessage = "";
+
+let prevGame = null;
 
 
 function onClick(e)
@@ -47,14 +51,8 @@ function onClick(e)
     if(buttonClick(buttons.reconnect))
     {
         // reconnect previous game
-        if(localStorage.prevGame)
-        {
-            let prevGame = JSON.parse(localStorage.prevGame);
-            console.log(prevGame);
-            roomId = prevGame.roomId;
-            inventory = prevGame.inventory;
+        if(prevGame)
             socket.emit("reconnect", prevGame.roomId, prevGame.socketId);
-        }
     }
 
     if(buttonClick(buttons.joinGame))
@@ -99,18 +97,35 @@ socket.on("error_message", (_message) => {
     errorMessage = _message;
 });
 
+socket.on("check_reconnect", (_canReconnect) => {
+    console.log("received");
+    buttons.reconnect.enabled = _canReconnect;
+});
+
 socket.on("reconnect", (_player) => {
     playerName = _player.name;
     role = _player.role;
+    inventory = prevGame.inventory;
 
     sm.loadScene(sm.SCENE.game);
 });
 
+img.menu.onload = function()
+{
+    _init();
+}
+
 
 export function init()
 {
-    canvas.width = 320 * SCALE;
-    canvas.height = 240 * SCALE;
+    if(img.menu.complete)
+        _init();
+}
+
+function _init()
+{
+    canvas.width = img.menu.width * SCALE;
+    canvas.height = img.menu.height * SCALE;
 
     ctx.imageSmoothingEnabled = false;
     ctx.textAlign = "left";
@@ -118,11 +133,20 @@ export function init()
 
     buttons.hostGame.enabled = false;
     buttons.joinGame.enabled = false;
+    buttons.reconnect.enabled = false;
 
     canvas.addEventListener("click", onClick);
     window.addEventListener("keydown", onKeyDown);
 
-    buttons.reconnect.enabled = localStorage.prevGame != null;
+    if(localStorage.prevGame)
+    {
+        prevGame = JSON.parse(localStorage.prevGame);
+        roomId = prevGame.roomId;
+        // socket.emit("reconnect", prevGame.roomId, prevGame.socketId);
+        socket.emit("check_reconnect", prevGame.roomId, prevGame.socketId);
+    }
+
+    // buttons.reconnect.enabled = localStorage.prevGame != null;
 }
 
 export function exit()
@@ -134,6 +158,13 @@ export function exit()
 function drawTextField(textField)
 {
     ctx.save();
+
+    ctx.fillStyle = "white";
+    ctx.fillRect(
+        textField.interactBox.x * SCALE,
+        textField.interactBox.y * SCALE,
+        textField.interactBox.width * SCALE,
+        textField.interactBox.height * SCALE);
 
     ctx.strokeStyle = (selectedTextField == textField) ? "dodgerblue" : "black";
     ctx.strokeRect(
@@ -166,15 +197,19 @@ function drawTextField(textField)
 
 export function draw()
 {
+    if(!document.fonts.check("48px Kenney Mini Square"))
+    {
+        requestAnimationFrame(draw);
+        return;
+    }
+
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img.menu, 0, 0, img.menu.width * SCALE, img.menu.height * SCALE);
 
-    ctx.lineWidth = 2;
-    ctx.strokeRect(0, 0, canvas.width, canvas.height);
-
-    ctx.font = '20px Kenney Mini Square';
+    ctx.font = "48px Kenney Mini Square";
     ctx.fillStyle = "black";
     ctx.textAlign = "center";
-    ctx.fillText("or", 10*16*SCALE, 7*16*SCALE);
+    ctx.fillText("It  Takes  a  Village", canvas.width / 2, 60*SCALE);
 
     drawTextField(textFields.playerName);
     drawTextField(textFields.roomCode);
@@ -182,8 +217,9 @@ export function draw()
     drawButton(buttons.joinGame);
     drawButton(buttons.reconnect);
 
+    ctx.font = "20px Kenney Mini Square";
     ctx.fillStyle = "red";
-    ctx.fillText(errorMessage, 10*16*SCALE, 13.5*16*SCALE);
+    ctx.fillText(errorMessage, 13*16*SCALE, 16.5*16*SCALE);
 
     if(sm.currentScene == sm.SCENE.menu)
         requestAnimationFrame(draw);
