@@ -8,6 +8,9 @@ const Tree = require("./Tree.js");
 const global = require("../global.js");
 
 class Game {
+
+    static io = null;
+
     constructor(roomId)
     {
         // lobby info
@@ -50,6 +53,7 @@ class Game {
 
         this.villagers = [];
         this.paths = [...Array(22)].map(e => Array(26).fill('-'));
+        this.mutate = false;
 
         this.farm = [];
         this.trees = [];
@@ -121,7 +125,16 @@ class Game {
     {
         for(let i = 0; i < global.VILLAGER_COUNT; i++)
         {
-            this.createVillager();
+            let villager = this.createVillager();
+
+            // assign quest
+            let index = Math.floor(Math.random() * global.QUESTS.length);
+            let quest = global.QUESTS[index];
+
+            if(quest.type != "happiness")
+                global.QUESTS.splice(index, 1);
+
+            villager.quest = quest;
         }
 
         this.sortVillagers();
@@ -129,6 +142,14 @@ class Game {
         // restore part of path
         for(let i = 1; i < 25; i++)
             this.paths[5][i] = '-';
+    }
+
+    sortVillagers()
+    {
+        // sort by y position
+        this.villagers.sort(function(a, b) {
+            return a.position.y - b.position.y;
+        });
     }
 
     initFacilities()
@@ -173,12 +194,12 @@ class Game {
     {
         switch(this.players.length)
         {
-            case 1: this.budget = 2000; break;
-            case 2: this.budget = 1600; break;
-            case 3: this.budget = 1200; break;
-            case 4: this.budget = 800; break;
-            case 5: this.budget = 400; break;
-            case 6: this.budget = 300; break;
+            case 1: this.budget = 1600; break;
+            case 2: this.budget = 1200; break;
+            case 3: this.budget = 800; break;
+            case 4: this.budget = 400; break;
+            case 5: this.budget = 300; break;
+            case 6: this.budget = 150; break;
             default: break;
         }
     }
@@ -262,13 +283,13 @@ class Game {
         }
     }
 
-    sortVillagers()
+    initEvent()
     {
-        // sort by y position
-        this.villagers.sort(function(a, b) {
-            return a.position.y - b.position.y;
-        });
+        this.event = global.EVENTS["cloudy_day"];
+        this.event.duration = 3;
+        this.nextEvent = this.getNextEvent();
     }
+
 
     // actions
 
@@ -298,17 +319,17 @@ class Game {
         switch(facility.level)
         {
             case 2:
-                facility.progressMax = 50;
+                facility.progressMax = 30;
                 // facility.cost["brick"] = 5;
                 // facility.cost["steel"] = 1;
                 break;
             case 3:
-                facility.progressMax = 80;
+                facility.progressMax = 50;
                 // facility.cost["brick"] = 8;
                 // facility.cost["steel"] = 2;
                 break;
             case 4:
-                facility.progressMax = 100;
+                facility.progressMax = 80;
                 // facility.cost["brick"] = 10;
                 // facility.cost["steel"] = 5;
                 break;
@@ -464,6 +485,10 @@ class Game {
                     villager.happiness -= 5;
                 else if(villager.hunger == 0)
                     villager.happiness -= 10;
+
+                // if not fed
+                if(!villager.fed)
+                    villager.happiness -= 5;
             }
 
             // update happiness based on sickness
@@ -475,10 +500,6 @@ class Game {
                 villager.happiness += 2;
             else if(villager.currentTask == villager.leastFavoriteTask)
                 villager.happiness -= 5;
-
-            // if not fed
-            // if(!villager.fed)
-            //     villager.happiness -= 5;
 
             if(villager.happiness > 100)
                 villager.happiness = 100;
@@ -505,32 +526,74 @@ class Game {
             }
 
             // mutation
-            if(this.day != 1 && this.day % 5 == 1)
-                this.mutateVillager(villager);
+            
 
         });
     }
 
-    mutateVillager(villager)
+    mutateVillagers()
     {
-        let mutationChance = 0.25;
-
-        if(Math.random() < mutationChance)
+        if(this.day != 1 && this.day % global.MUTATION_FREQUENCY == 1)
         {
-            villager.mostEffectiveTask = Villager.generateTask();
-            villager.leastEffectiveTask = Villager.generateLeastEffectiveTask(villager.mostEffectiveTask);
-        }
+            this.mutate = true;
 
-        else if(Math.random() < mutationChance)
-        {
-            villager.mostFavoriteTask = Villager.generateTask();
-            villager.leastFavoriteTask = Villager.generateLeastFavoriteTask(villager.mostFavoriteTask);
-        }
+            this.villagers.forEach(villager => {
+                let mutationChance = 0.25;
 
-        else if(Math.random() < mutationChance)
-        {
-            villager.favoriteFood = Villager.generateFavoriteFood();
+                if(Math.random() < mutationChance)
+                {
+                    villager.mostEffectiveTask = Villager.generateTask();
+                    villager.leastEffectiveTask = Villager.generateLeastEffectiveTask(villager.mostEffectiveTask);
+                }
+
+                else if(Math.random() < mutationChance)
+                {
+                    villager.mostFavoriteTask = Villager.generateTask();
+                    villager.leastFavoriteTask = Villager.generateLeastFavoriteTask(villager.mostFavoriteTask);
+                }
+
+                else if(Math.random() < mutationChance)
+                {
+                    villager.favoriteFood = Villager.generateFavoriteFood();
+                }
+            });
         }
+    }
+
+    checkQuest()
+    {
+        this.villagers.forEach(villager => {
+            if(villager.quest)
+            {
+                let completed = false;
+
+                switch(villager.quest.type)
+                {
+                    case "happiness":
+                        completed = villager.happiness >= villager.quest.targetValue;
+                        break;
+                    case "water":
+                    case "farming":
+                    case "education":
+                    case "housing":
+                        completed = this.facilities[villager.quest.type].level >= villager.quest.targetValue;
+                        break;
+                    default:
+                        break;
+                }
+
+                if(completed)
+                {
+                    let currentPlayer = this.players[this.currentTurn];
+                    currentPlayer.questsComplete++;
+
+                    Game.io.sockets.to(currentPlayer.id).emit("give_item", global.ITEMS.steel, 2);
+                    this.players.forEach(player => Game.io.sockets.to(player.id).emit("quest_complete", villager, currentPlayer.name));
+                    villager.quest = null;
+                    this.players.forEach(player => Game.io.sockets.to(player.id).emit("villager", villager));
+                }
+            }
+        });
     }
 
     changeTurn()
@@ -538,6 +601,311 @@ class Game {
         this.currentTurn = (this.currentTurn + 1) % this.players.length;
         if(!this.players[this.currentTurn].connected)
             this.changeTurn();
+    }
+
+    removeVillagerFromFacility(villager)
+    {
+        if(villager.currentTask)
+        {
+            let oldFacility = this.facilities[villager.currentTask];
+
+            for(let i = 0; i < oldFacility.assignedVillagers.length; i++)
+            {
+                if(oldFacility.assignedVillagers[i] == villager.name)
+                {
+                    oldFacility.assignedVillagers.splice(i, 1);
+                    break;
+                }
+            }
+        }
+    }
+
+    villagerFlee(villager)
+    {
+        this.paths[villager.position.y][villager.position.x] = "-";
+    }
+
+    villagerSick(villager)
+    {
+        villager.sick = true;
+        villager.labelColor = "rgb(0,191,0)";
+    }
+
+    villagerHeal(villager)
+    {
+        villager.sick = false;
+        villager.labelColor = "white";
+    }
+
+    checkDeathConditions() // return bool
+    {
+        let totalHappiness = 0;
+        this.villagers.forEach(villager => totalHappiness += villager.happiness);
+
+        let avgHappiness = totalHappiness / this.villagers.length;
+
+        return avgHappiness <= global.DEATH_THRESHOLD;
+    }
+
+    eventStart(event)
+    {
+        switch(event.id)
+        {
+            case "harvest":
+                {
+                    let numCrops = Math.floor(7 - this.players.length * 0.5);
+                    let crops = [global.ITEMS.cucumber, global.ITEMS.tomato, global.ITEMS.potato, global.ITEMS.carrot];
+
+                    this.players.forEach(player => {
+                        for(let i = 0; i < numCrops; i++)
+                        {
+                            let item = crops[Math.floor(Math.random() * crops.length)];
+                            Game.io.sockets.to(player.id).emit("give_item", item, 1);
+                        }
+                    });
+                    
+                    break;
+                }
+            case "rainy_day":
+                {
+                    this.players.forEach(player => {
+                        Game.io.sockets.to(player.id).emit("set_variable", "cropGrowthModifier", -1);
+                    });
+                    break;
+                }
+            case "free_cake":
+                {
+                    let villager = this.createVillager();
+                    this.sortVillagers();
+                    break;
+                }
+            case "black_friday":
+                {
+                    this.players.forEach(player => {
+                        Game.io.sockets.to(player.id).emit("set_variable", "priceMultiplier", 0.5);
+                    });
+                    break;
+                }
+            case "summer_day":
+                {
+                    global.SICK_CHANCE *= -1;
+                    this.villagers.forEach(villager => this.villagerHeal(villager));
+                    break;
+                }
+            case "drought":
+                {
+                    let droughtChance = 0;
+                    switch(this.facilities["water"].level)
+                    {
+                        case 1: droughtChance = 0.6; break;
+                        case 2: droughtChance = 0.45; break;
+                        case 3: droughtChance = 0.3; break;
+                        case 4: droughtChance = 0.15; break;
+                        case 5: droughtChance = 0; break;
+                        default: break;
+                    }
+
+                    this.farm.forEach(farmland => {
+                        if(Math.random() < droughtChance)
+                        {
+                            farmland.crop = null;
+                            farmland.label = "empty";
+                        }
+                    });
+
+                    break;
+                }
+            case "disease":
+                {
+                    let diseaseChance = 0;
+                    switch(this.facilities["water"].level)
+                    {
+                        case 1: diseaseChance = 0.2; break;
+                        case 2: diseaseChance = 0.15; break;
+                        case 3: diseaseChance = 0.1; break;
+                        case 4: diseaseChance = 0.05; break;
+                        case 5: diseaseChance = 0; break;
+                        default: break;
+                    }
+
+                    this.villagers.forEach(villager => {
+                        if(Math.random() < diseaseChance)
+                            this.villagerSick(villager);
+                    });
+
+                    break;
+                }
+            case "flood":
+                {
+                    Object.values(this.facilities).forEach(facility => {
+                        facility.progress -= global.FLOOD_DAMAGE;
+                        if(facility.progress < 0)
+                            facility.progress = 0;
+                    });
+                }
+            default: break;
+        }
+    }
+
+    eventUpdate(event)
+    {
+        // console.log("update");
+        // for events that have effects every day while action
+    }
+
+    eventEnd(event)
+    {
+        switch(event.id)
+        {
+            case "rainy_day":
+                {
+                    this.players.forEach(player => {
+                        Game.io.sockets.to(player.id).emit("set_variable", "cropGrowthModifier", 0);
+                    });
+                    break;
+                }
+            case "black_friday":
+                {
+                    game.players.forEach(player => {
+                        Game.io.sockets.to(player.id).emit("set_variable", "priceMultiplier", 1);
+                    });
+                    break;
+                }
+            case "summer_day":
+                {
+                    global.SICK_CHANCE *= -1;
+                    break;
+                }
+            case "death":
+                {
+                    if(this.checkDeathConditions())
+                    {
+                        let index = Math.floor(Math.random() * this.villagers.length);
+                        let villager = this.villagers[index];
+                        this.removeVillagerFromFacility(villager);
+
+                        this.villagers.splice(index, 1);
+                        this.villagerFlee(villager);
+
+                        this.players.forEach(player => {
+                            Game.io.sockets.to(player.id).emit("villager_flee", villager);
+                            Game.io.sockets.to(player.id).emit("paths", this.paths);
+                        });
+                    }
+                    break;
+                }
+            default: break;
+        }
+    }
+
+    updateEvent()
+    {
+        this.event.duration--;
+
+        if(this.event.duration == 0)
+        {
+            this.eventEnd(this.event);
+
+            // switch to next event
+            
+            if(this.facilities["power"].level > 1)
+            {
+                let duration = this.nextEvent.duration;
+                this.event = global.EVENTS.cloudy_day.clone();
+                this.event.duration = duration;
+
+                this.facilities["power"].level = 1;
+                this.facilities["power"].progress = 0;
+            }
+            else
+                this.event = this.nextEvent;
+
+            this.eventStart(this.event);
+
+            // set next event
+            this.nextEvent = this.getNextEvent();
+        }
+        else
+            this.eventUpdate(this.event);
+    }
+
+    getNextEvent()
+    {
+        // calculate season for next event
+        let dayCount = this.day + this.event.duration;
+
+        if(dayCount > 60) return null;
+
+        let season = "";
+
+        for(let i = 0; i < global.SEASONS.length; i++)
+        {
+            dayCount -= global.SEASONS[i].days;
+            if(dayCount <= 0)
+            {
+                season = global.SEASONS[i].name;
+                break;
+            }
+        }
+
+        // get event from event table
+        let event = null;
+
+        while(true)
+        {
+            switch(season)
+            {
+                case "spring":
+                    event = global.EVENTS_SPRING.getItem();
+                    break;
+                case "summer":
+                    event = global.EVENTS_SUMMER.getItem();
+                    break;
+                case "autumn":
+                    event = global.EVENTS_AUTUMN.getItem();
+                    break;
+                case "winter":
+                    event = global.EVENTS_WINTER.getItem();
+                    break;
+                default:
+                    break;
+            }
+
+            if(event.id != "death")
+                break;
+            else
+            {
+                // prevents consecutive death events
+                if(this.event.id != "death" && this.checkDeathConditions())
+                    break;
+            }
+        }
+
+        event.duration = Math.floor(Math.random() * (global.EVENT_DURATION_MAX - global.EVENT_DURATION_MIN + 1))
+            + global.EVENT_DURATION_MIN;
+        return event;
+    }
+
+    updateSeason()
+    {
+        if(this.daysUntilNextSeason == 0)
+        {
+            for(let i = 0; i < global.SEASONS.length; i++)
+            {
+                if(global.SEASONS[i].name == this.season)
+                {
+                    if(i < global.SEASONS.length - 1)
+                    {
+                        this.season = global.SEASONS[i+1].name;
+                        this.daysUntilNextSeason = global.SEASONS[i+1].days;
+                    }
+                    if(i < global.SEASONS.length - 2)
+                        this.nextSeason = global.SEASONS[i+2].name;
+                    
+                    break;
+                }
+            }
+        }
     }
 
     nextDay()
@@ -551,7 +919,13 @@ class Game {
         this.day++;
         this.daysUntilNextSeason--;
 
-        // this.updateEvent();
+        this.mutateVillagers();
+        this.updateSeason();
+
+        // check for happiness quest completion
+        this.checkQuest();
+
+        this.updateEvent();
     }
 };
 

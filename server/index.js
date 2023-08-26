@@ -30,6 +30,7 @@ const MAX_PLAYERS = 6;
 
 // lobby ////////////////////////////////////////////////////////////////
 
+Game.io = io;
 let games = {};     // dictionary of waiting and ongoing games, key = roomId
 
 function hostGame(socket, playerName)
@@ -37,7 +38,7 @@ function hostGame(socket, playerName)
     console.log("host: " + socket.id);
 
     let roomId = generateRoomId();
-    let game = new Game(roomId);
+    let game = new Game(io, roomId);
     game.players.push(new Player(playerName, socket.id));
 
     socket.emit("refresh_lobby", game.players, roomId);
@@ -168,26 +169,9 @@ function startGame(roomId)
     game.initBudget();
     game.initFarmland();
     game.initTrees();
-
-    // assign villager quests
-    game.villagers.forEach(villager => {
-
-        let index = Math.floor(Math.random() * global.QUESTS.length);
-        let quest = global.QUESTS[index];
-
-        if(quest.type != "happiness")
-            global.QUESTS.splice(index, 1);
-
-        villager.quest = quest;
-    });
-
+    game.initEvent();
 
     // events
-    game.event = global.EVENTS["cloudy_day"];
-    game.event.duration = 3;
-
-    game.nextEvent = getNextEvent(game);
-
     game.started = true;
 
     game.players.forEach(player => {
@@ -286,6 +270,7 @@ function disconnectGame(game, index)
             io.sockets.to(player.id).emit("change_turn", game.currentTurn);
         });
     }
+
 }
 
 function checkReconnect(socket, _roomId, _socketId)
@@ -365,49 +350,7 @@ function reconnect(socket, _roomId, _socketId)
 
 // updates
 
-function removeVillagerFromFacility(villager, game)
-{
-    if(villager.currentTask)
-    {
-        let oldFacility = game.facilities[villager.currentTask];
 
-        for(let i = 0; i < oldFacility.assignedVillagers.length; i++)
-        {
-            if(oldFacility.assignedVillagers[i] == villager.name)
-            {
-                oldFacility.assignedVillagers.splice(i, 1);
-                break;
-            }
-        }
-    }
-}
-
-function villagerFlee(villager, game)
-{
-    game.paths[villager.position.y][villager.position.x] = "-";
-}
-
-function villagerSick(villager)
-{
-    villager.sick = true;
-    villager.labelColor = "rgb(0,191,0)";
-}
-
-function villagerHeal(villager)
-{
-    villager.sick = false;
-    villager.labelColor = "white";
-}
-
-function checkDeathConditions(game) // return bool
-{
-    let totalHappiness = 0;
-    game.villagers.forEach(villager => totalHappiness += villager.happiness);
-
-    let avgHappiness = totalHappiness / game.villagers.length;
-
-    return avgHappiness <= global.DEATH_THRESHOLD;
-}
 
 function generateLoot(player)     // returns array of loot items
 {
@@ -421,280 +364,63 @@ function generateLoot(player)     // returns array of loot items
     return loot;
 }
 
-function eventStart(game, event)
+function endTurn(_roomId)
 {
-    switch(event.id)
+    let game = games[_roomId];
+
+    game.nextDay();
+
+    // check villagers with happiness <= 0
+    let fleeingVillagers = [];
+    for(let i = game.villagers.length - 1; i >= 0; i--)
     {
-        case "harvest":
-            {
-                let numCrops = Math.floor(7 - game.players.length * 0.5);
-                let crops = [global.ITEMS.cucumber, global.ITEMS.tomato, global.ITEMS.potato, global.ITEMS.carrot];
+        let villager = game.villagers[i];
 
-                game.players.forEach(player => {
-                    for(let i = 0; i < numCrops; i++)
-                    {
-                        let item = crops[Math.floor(Math.random() * crops.length)];
-                        io.sockets.to(player.id).emit("give_item", item, 1);
-                    }
-                });
-                
-                break;
-            }
-        case "rainy_day":
-            {
-                game.players.forEach(player => {
-                    io.sockets.to(player.id).emit("set_variable", "cropGrowthModifier", -1);
-                });
-                break;
-            }
-        case "free_cake":
-            {
-                let villager = game.createVillager();
-                game.sortVillagers();
-                break;
-            }
-        case "black_friday":
-            {
-                game.players.forEach(player => {
-                    io.sockets.to(player.id).emit("set_variable", "priceMultiplier", 0.5);
-                });
-                break;
-            }
-        case "summer_day":
-            {
-                global.SICK_CHANCE = 0;
-                game.villagers.forEach(villager => villagerHeal(villager));
-                break;
-            }
-        case "drought":
-            {
-                let droughtChance = 0;
-                switch(game.facilities["water"].level)
-                {
-                    case 1: droughtChance = 0.6; break;
-                    case 2: droughtChance = 0.45; break;
-                    case 3: droughtChance = 0.3; break;
-                    case 4: droughtChance = 0.15; break;
-                    case 5: droughtChance = 0; break;
-                    default: break;
-                }
-
-                game.farm.forEach(farmland => {
-                    if(Math.random() < droughtChance)
-                    {
-                        farmland.crop = null;
-                        farmland.label = "empty";
-                    }
-                });
-
-                break;
-            }
-        case "disease":
-            {
-                let diseaseChance = 0;
-                switch(game.facilities["water"].level)
-                {
-                    case 1: diseaseChance = 0.2; break;
-                    case 2: diseaseChance = 0.15; break;
-                    case 3: diseaseChance = 0.1; break;
-                    case 4: diseaseChance = 0.05; break;
-                    case 5: diseaseChance = 0; break;
-                    default: break;
-                }
-
-                game.villagers.forEach(villager => {
-                    if(Math.random() < diseaseChance)
-                        villagerSick(villager);
-                });
-
-                break;
-            }
-        case "flood":
-            {
-                Object.values(game.facilities).forEach(facility => {
-                    facility.progress -= global.FLOOD_DAMAGE;
-                    if(facility.progress < 0)
-                        facility.progress = 0;
-                });
-            }
-        default: break;
-    }
-}
-
-function eventUpdate(game, event)
-{
-    // console.log("update");
-}
-
-function eventEnd(game, event)
-{
-    switch(event.id)
-    {
-        case "rainy_day":
-            {
-                game.players.forEach(player => {
-                    io.sockets.to(player.id).emit("set_variable", "cropGrowthModifier", 0);
-                });
-                break;
-            }
-        case "black_friday":
-            {
-                game.players.forEach(player => {
-                    io.sockets.to(player.id).emit("set_variable", "priceMultiplier", 1);
-                });
-                break;
-            }
-        case "summer_day":
-            {
-                global.SICK_CHANCE = 0.03;
-                break;
-            }
-        case "death":
-            {
-                if(checkDeathConditions(game))
-                {
-                    let index = Math.floor(Math.random() * game.villagers.length);
-                    let villager = game.villagers[index];
-                    removeVillagerFromFacility(villager, game);
-
-                    game.villagers.splice(index, 1);
-                    villagerFlee(villager, game);
-
-                    game.players.forEach(player => {
-                        io.sockets.to(player.id).emit("villager_flee", villager);
-                        io.sockets.to(player.id).emit("paths", game.paths);
-                    });
-                }
-                break;
-            }
-        default: break;
-    }
-}
-
-function updateEvent(game)
-{
-    game.event.duration--;
-
-    if(game.event.duration == 0)
-    {
-        eventEnd(game, game.event);
-
-        // switch to next event
-        
-        if(game.facilities["power"].level > 1)
+        if(villager.happiness <= 0)
         {
-            let duration = game.nextEvent.duration;
-            game.event = global.EVENTS.cloudy_day.clone();
-            game.event.duration = duration;
-
-            game.facilities["power"].level = 1;
-            game.facilities["power"].progress = 0;
-        }
-        else
-            game.event = game.nextEvent;
-
-        eventStart(game, game.event);
-
-        // set next event
-        game.nextEvent = getNextEvent(game);
-    }
-    else
-        eventUpdate(game, game.event);
-}
-
-function getNextEvent(game)
-{
-    // calculate season for next event
-    let dayCount = game.day + game.event.duration;
-
-    if(dayCount > 60) return null;
-
-    let season = "";
-
-    for(let i = 0; i < global.SEASONS.length; i++)
-    {
-        dayCount -= global.SEASONS[i].days;
-        if(dayCount <= 0)
-        {
-            season = global.SEASONS[i].name;
-            break;
+            game.removeVillagerFromFacility(villager);
+            game.villagers.splice(i, 1);
+            fleeingVillagers.push(villager);
+            game.villagerFlee(villager);
         }
     }
 
-    // get event from event table
-    let event = null;
+    // change player turn
+    game.changeTurn();
 
-    while(true)
-    {
-        switch(season)
-        {
-            case "spring":
-                event = global.EVENTS_SPRING.getItem();
-                break;
-            case "summer":
-                event = global.EVENTS_SUMMER.getItem();
-                break;
-            case "autumn":
-                event = global.EVENTS_AUTUMN.getItem();
-                break;
-            case "winter":
-                event = global.EVENTS_WINTER.getItem();
-                break;
-            default:
-                break;
-        }
+    game.players.forEach(player => {
+        io.sockets.to(player.id).emit("day", game.day, game.daysUntilNextSeason);
 
-        if(event.id != "death")
-            break;
-        else
-        {
-            // prevents consecutive death events
-            if(game.event.id != "death" && checkDeathConditions(game))
-                break;
-        }
-    }
+        fleeingVillagers.forEach(villager => {
+            io.sockets.to(player.id).emit("villager_flee", villager);
+        });
 
-    
+        if(fleeingVillagers.length > 0)
+            io.sockets.to(player.id).emit("paths", game.paths);
 
-    event.duration = Math.floor(Math.random() * (global.EVENT_DURATION_MAX - global.EVENT_DURATION_MIN + 1))
-        + global.EVENT_DURATION_MIN;
-    return event;
-}
 
-function checkQuest(socket, game)
-{
-    game.villagers.forEach(villager => {
-        if(villager.quest)
-        {
-            let completed = false;
+        io.sockets.to(player.id).emit("season", game.season, game.nextSeason);
+        io.sockets.to(player.id).emit("event", game.event, game.nextEvent);
 
-            switch(villager.quest.type)
-            {
-                case "happiness":
-                    completed = villager.happiness >= villager.quest.targetValue;
-                    break;
-                case "water":
-                case "farming":
-                case "education":
-                case "housing":
-                    completed = game.facilities[villager.quest.type].level >= villager.quest.targetValue;
-                    break;
-                default:
-                    break;
-            }
+        if(game.mutate)
+            io.sockets.to(player.id).emit("mutate");
 
-            if(completed)
-            {
-                game.players[game.currentTurn].questsComplete++;
+        io.sockets.to(player.id).emit("villagers", game.villagers);
+        io.sockets.to(player.id).emit("facilities", game.facilities);
+        io.sockets.to(player.id).emit("factory", game.factory);
+        io.sockets.to(player.id).emit("farm", game.farm);
+        io.sockets.to(player.id).emit("trees", game.trees, game.rolesPresent["scientist"] || game.npcPresent["scientist"]);
 
-                socket.emit("give_item", global.ITEMS.steel, 2);
-                game.players.forEach(player => io.sockets.to(player.id).emit("quest_complete", villager, game.players[game.currentTurn].name));
-                villager.quest = null;
-                game.players.forEach(player => io.sockets.to(player.id).emit("villager", villager));
-            }
-        }
+        io.sockets.to(player.id).emit("change_turn", game.currentTurn);
     });
+
+    game.mutate = false;
+
+    let currentPlayer = game.players[game.currentTurn];
+    io.sockets.to(currentPlayer.id).emit("daily_loot", generateLoot(currentPlayer), global.LOOT_AMOUNT + currentPlayer.questsComplete);
 }
+
+
 
 
 // calculations ////////////////////////////////////////////////////////////////
@@ -772,7 +498,7 @@ io.on("connection", (socket) => {
             {
                 game.villagers[i] = _villager;
 
-                checkQuest(socket, game);
+                game.checkQuest();
 
                 game.players.forEach(player => {
                     io.sockets.to(player.id).emit("villager", game.villagers[i]);
@@ -792,116 +518,7 @@ io.on("connection", (socket) => {
         });
     });
 
-    socket.on("end_turn", (_roomId) => {
-        let game = games[_roomId];
-
-        // track villagers that are already sick
-        let sickVillagers = [];
-        game.villagers.forEach(villager => {
-            if(villager.sick) sickVillagers.push(villager);
-        });
-
-        game.nextDay();
-
-        // check for happiness quest completion
-        checkQuest(socket, game);
-
-        updateEvent(game);
-
-        let changeSeason = false;
-        if(game.daysUntilNextSeason == 0)
-        {
-            changeSeason = true;
-
-            for(let i = 0; i < global.SEASONS.length; i++)
-            {
-                if(global.SEASONS[i].name == game.season)
-                {
-                    if(i < global.SEASONS.length - 1)
-                    {
-                        game.season = global.SEASONS[i+1].name;
-                        game.daysUntilNextSeason = global.SEASONS[i+1].days;
-                    }
-                    if(i < global.SEASONS.length - 2)
-                        game.nextSeason = global.SEASONS[i+2].name;
-                    
-                    break;
-                }
-            }
-        }
-
-        // calculate capacity of sick villagers
-        let sickCapacity = 0;
-        switch(game.facilities["housing"].level)
-        {
-            case 1: sickCapacity = 3; break;
-            case 2: sickCapacity = 4; break;
-            case 3: sickCapacity = 5; break;
-            case 4: sickCapacity = 7; break;
-            case 5: sickCapacity = 9; break;
-            default: break;
-        }
-
-        // check villagers with happiness <= 0, or too many are sick
-        let fleeingVillagers = [];
-        for(let i = game.villagers.length - 1; i >= 0; i--)
-        {
-            let villager = game.villagers[i];
-
-            // if(villager.sick)
-            // {
-            //     let locate = sickVillagers.find(v => v.name == villager.name);
-
-            //     if(!locate && sickVillagers.length < sickCapacity)
-            //         sickVillagers.push(villager);
-            //     else if(!locate)
-            //     {
-            //         removeVillagerFromFacility(villager, game);
-            //         game.villagers.splice(i, 1);
-            //         fleeingVillagers.push(villager);
-            //     }
-            // }
-
-            if(villager.happiness <= 0)
-            {
-                removeVillagerFromFacility(villager, game);
-                game.villagers.splice(i, 1);
-                fleeingVillagers.push(villager);
-                villagerFlee(villager, game);
-            }
-        }
-
-        // change player turn
-        game.changeTurn();
-
-        game.players.forEach(player => {
-            io.sockets.to(player.id).emit("day", game.day, game.daysUntilNextSeason);
-
-            fleeingVillagers.forEach(villager => {
-                io.sockets.to(player.id).emit("villager_flee", villager);
-            });
-
-            if(fleeingVillagers.length > 0)
-                io.sockets.to(player.id).emit("paths", game.paths);
-
-
-            if(changeSeason)
-                io.sockets.to(player.id).emit("season", game.season, game.nextSeason);
-
-            io.sockets.to(player.id).emit("event", game.event, game.nextEvent);
-
-            io.sockets.to(player.id).emit("villagers", game.villagers);
-            io.sockets.to(player.id).emit("facilities", game.facilities);
-            io.sockets.to(player.id).emit("factory", game.factory);
-            io.sockets.to(player.id).emit("farm", game.farm);
-            io.sockets.to(player.id).emit("trees", game.trees, game.rolesPresent["scientist"] || game.npcPresent["scientist"]);
-
-            io.sockets.to(player.id).emit("change_turn", game.currentTurn);
-        });
-
-        let currentPlayer = game.players[game.currentTurn];
-        io.sockets.to(currentPlayer.id).emit("daily_loot", generateLoot(currentPlayer), global.LOOT_AMOUNT + currentPlayer.questsComplete);
-    });
+    socket.on("end_turn", (_roomId) => endTurn(_roomId));
 
     socket.on("pick_tree", (_roomId, _treeId) => {
 
@@ -952,44 +569,12 @@ io.on("connection", (socket) => {
         });
     });
 
-    socket.on("add_progress", (_roomId, _facility, _amount) => {
-        let game = games[_roomId];
-        let facility = game.facilities[_facility.label];
-
-        facility.progress += _amount;
-
-        let upgrade = false;
-        while(facility.progress >= facility.progressMax)
-        {
-            upgrade = true;
-
-            let remaining = facility.progress - facility.progressMax;
-            game.upgradeFacility(facility);
-            facility.progress += remaining;
-
-            checkQuest(socket, game);
-        }
-
-        game.players.forEach(player => {
-            io.sockets.to(player.id).emit("facility", facility);
-
-            if(upgrade)
-            {
-                if(facility.label == "water" && facility.level < 5)
-                io.sockets.to(player.id).emit("farm", game.farm);
-
-                if(facility.label == "farming")
-                    io.sockets.to(player.id).emit("farm", game.farm);
-            }
-        });
-    });
-
     socket.on("upgrade_facility", (_roomId, _facility) => {
         let game = games[_roomId];
         let facility = game.facilities[_facility.label];
         game.upgradeFacility(facility);
 
-        checkQuest(socket, game);
+        game.checkQuest();
 
         game.players.forEach(player => {
             io.sockets.to(player.id).emit("facility", facility);

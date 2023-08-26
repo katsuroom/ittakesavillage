@@ -8,7 +8,7 @@ const {Option, RandomTable} = require("./src/RandomTable.js");
 const ShopItem = require("./src/ShopItem.js");
 
 
-const VILLAGER_COUNT = 8;
+const VILLAGER_COUNT = 10;
 const FARMLAND_COUNT = 32;
 
 const TREE_COUNT = 8;
@@ -19,6 +19,7 @@ const FARMLAND_LOCKED = true;
 
 const SICK_CHANCE = 0.08;
 const HUNGRY_SICK_CHANCE = 0.25;
+const MUTATION_FREQUENCY = 5;
 
 const DEATH_THRESHOLD = 40;
 const FLOOD_DAMAGE = 20;
@@ -35,9 +36,9 @@ const ITEMS = {
     potatoSeed: undefined,
     carrotSeed: undefined,
 
-    wood: new Material("wood", "wood", 3, 6),
-    brick: new Material("brick", "brick", 2, 6),
-    steel: new Material("steel", "steel", 5, 10),
+    wood: new Material("wood", "wood", 5, 10),
+    brick: new Material("brick", "brick", 5, 10),
+    steel: new Material("steel", "steel", 8, 15),
 };
 
 ITEMS.cucumberSeed = new Seed("cucumber seed", "cucumber_seed", ITEMS.cucumber);
@@ -103,7 +104,7 @@ const EVENTS = {
 };
 
 const EVENTS_SPRING = new RandomTable([
-    new Option(EVENTS["cloudy_day"], 4),
+    new Option(EVENTS["cloudy_day"], 1),
     new Option(EVENTS["harvest"], 11),
     new Option(EVENTS["rainy_day"], 28),
     new Option(EVENTS["free_cake"], 4),
@@ -116,7 +117,7 @@ const EVENTS_SPRING = new RandomTable([
 ]);
 
 const EVENTS_SUMMER = new RandomTable([
-    new Option(EVENTS["cloudy_day"], 6),
+    new Option(EVENTS["cloudy_day"], 1),
     new Option(EVENTS["harvest"], 6),
     new Option(EVENTS["rainy_day"], 5),
     new Option(EVENTS["free_cake"], 6),
@@ -130,7 +131,7 @@ const EVENTS_SUMMER = new RandomTable([
 ]);
 
 const EVENTS_AUTUMN = new RandomTable([
-    new Option(EVENTS["cloudy_day"], 5),
+    new Option(EVENTS["cloudy_day"], 1),
     new Option(EVENTS["harvest"], 20),
     new Option(EVENTS["rainy_day"], 10),
     new Option(EVENTS["free_cake"], 8),
@@ -143,7 +144,7 @@ const EVENTS_AUTUMN = new RandomTable([
 ]);
 
 const EVENTS_WINTER = new RandomTable([
-    new Option(EVENTS["cloudy_day"], 5),
+    new Option(EVENTS["cloudy_day"], 1),
     new Option(EVENTS["free_cake"], 20),
     new Option(EVENTS["black_friday"], 10),
     new Option(EVENTS["drought"], 20),
@@ -172,6 +173,7 @@ module.exports = {
     FARMLAND_LOCKED,
     SICK_CHANCE,
     HUNGRY_SICK_CHANCE,
+    MUTATION_FREQUENCY,
     DEATH_THRESHOLD,
     FLOOD_DAMAGE,
     TREE_COUNT,
