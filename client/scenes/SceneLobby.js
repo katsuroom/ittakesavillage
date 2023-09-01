@@ -101,7 +101,7 @@ export function draw()
         if(players[i].ready)
         {
             ctx.fillStyle = "blue";
-            ctx.fillText("!", 3.5*16*SCALE, (7 + i*1.5)*16*SCALE);
+            ctx.fillText("!", 3.5*16*SCALE, (5 + i*1.5)*16*SCALE);
         }
     }
 

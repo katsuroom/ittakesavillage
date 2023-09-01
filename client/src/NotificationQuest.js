@@ -37,7 +37,7 @@ export class NotificationQuest extends Notification {
             ctx.fillRect(16*8*scale, 16*14.5*scale, 16*26*scale, 16*2*scale);
 
             ctx.fillStyle = "white";
-            ctx.fillText("received steel x2", 16*21*scale, 16*15.5*scale);
+            ctx.fillText("received steel x1", 16*21*scale, 16*15.5*scale);
         }
 
     }

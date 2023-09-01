@@ -11,7 +11,7 @@ const ShopItem = require("./src/ShopItem.js");
 const VILLAGER_COUNT = 10;
 const FARMLAND_COUNT = 32;
 
-const TREE_COUNT = 8;
+const TREE_COUNT = 4;
 const TREE_GROWTH_TIME = 10;
 
 const FARMLAND_UNLOCKED = false;
@@ -20,6 +20,7 @@ const FARMLAND_LOCKED = true;
 const SICK_CHANCE = 0.08;
 const HUNGRY_SICK_CHANCE = 0.25;
 const MUTATION_FREQUENCY = 5;
+const MUTATION_CHANCE = 0.25;
 
 const DEATH_THRESHOLD = 40;
 const FLOOD_DAMAGE = 20;
@@ -36,8 +37,8 @@ const ITEMS = {
     potatoSeed: undefined,
     carrotSeed: undefined,
 
-    wood: new Material("wood", "wood", 5, 10),
-    brick: new Material("brick", "brick", 5, 10),
+    wood: new Material("wood", "wood", 3, 8),
+    brick: new Material("brick", "brick", 4, 8),
     steel: new Material("steel", "steel", 8, 15),
 };
 
@@ -47,9 +48,9 @@ ITEMS.potatoSeed = new Seed("potato seed", "potato_seed", ITEMS.potato);
 ITEMS.carrotSeed = new Seed("carrot seed", "carrot_seed", ITEMS.carrot);
 
 const QUESTS = [
-    new Quest("happiness", 80, "happiness = 80"),
-    new Quest("happiness", 90, "happiness = 90"),
-    new Quest("happiness", 100, "happiness = 100"),
+    new Quest("happiness", 70, "reach 70 happiness"),
+    new Quest("happiness", 80, "reach 80 happiness"),
+    new Quest("happiness", 90, "reach 90 happiness"),
 ];
 
 ["water", "farming", "education", "housing"].forEach(facility => {
@@ -106,14 +107,14 @@ const EVENTS = {
 const EVENTS_SPRING = new RandomTable([
     new Option(EVENTS["cloudy_day"], 1),
     new Option(EVENTS["harvest"], 11),
-    new Option(EVENTS["rainy_day"], 28),
-    new Option(EVENTS["free_cake"], 4),
+    new Option(EVENTS["rainy_day"], 20),
+    new Option(EVENTS["free_cake"], 2),
     new Option(EVENTS["black_friday"], 8),
     new Option(EVENTS["drought"], 1),
     new Option(EVENTS["disease"], 5),
     new Option(EVENTS["heat_stroke"], 8),
-    new Option(EVENTS["death"], 8),
-    new Option(EVENTS["flood"], 15),
+    // new Option(EVENTS["death"], 8),
+    new Option(EVENTS["flood"], 10),
 ]);
 
 const EVENTS_SUMMER = new RandomTable([
@@ -174,6 +175,7 @@ module.exports = {
     SICK_CHANCE,
     HUNGRY_SICK_CHANCE,
     MUTATION_FREQUENCY,
+    MUTATION_CHANCE,
     DEATH_THRESHOLD,
     FLOOD_DAMAGE,
     TREE_COUNT,

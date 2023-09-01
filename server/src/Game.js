@@ -1,8 +1,6 @@
 const Villager = require("./Villager.js");
 const Facility = require("./Facility.js");
-const ItemStack = require("./ItemStack.js");
 const Farmland = require("./Farmland.js");
-const Factory = require("./Factory.js");
 const Tree = require("./Tree.js");
 
 const global = require("../global.js");
@@ -44,7 +42,7 @@ class Game {
         this.day = 1;
         this.season = "spring";
         this.nextSeason = "summer";
-        this.daysUntilNextSeason = 20;
+        this.daysUntilNextSeason = global.SEASONS[0].days;
 
         this.event = null;
         this.nextEvent = null;
@@ -58,14 +56,12 @@ class Game {
         this.farm = [];
         this.trees = [];
 
-        this.factory = new Factory();
-
         this.facilities = {
             "water": new Facility(20),
             "farming": new Facility(20),
             "education": new Facility(20),
             "housing": new Facility(20),
-            "power": new Facility(10)
+            "power": new Facility(20)
         };
     }
 
@@ -180,14 +176,6 @@ class Game {
         //     facility.cost["brick"] = 3;
         //     facility.cost["steel"] = 0;
         // });
-    }
-
-    initFactory()
-    {
-        this.factory.interactBox.x = 16*13;
-        this.factory.interactBox.y = 16*15.5;
-        this.factory.interactBox.width = 16*4;
-        this.factory.interactBox.height = 16*3;
     }
 
     initBudget()
@@ -430,30 +418,29 @@ class Game {
         });
     }
 
-    updateFactory()
-    {
-        this.factory.brickProgress += this.facilities["education"].assignedVillagers.length;
-        
-        this.factory.bricks += Math.floor(this.factory.brickProgress / 10);
-        this.factory.brickProgress = this.factory.brickProgress % 10;
-    }
-
-    updateCropGrowth()
+    advanceCropGrowth(amount)
     {
         this.farm.forEach((farmland) => {
             if(farmland.daysLeft > 0)
             {
-                farmland.daysLeft--;
-                if(farmland.daysLeft == 0)
+                farmland.daysLeft -= amount;
+                if(farmland.daysLeft <= 0)
+                {
+                    farmland.daysLeft = 0;
                     farmland.label = "ready";
+                }
                 else
-                    farmland.label = farmland.daysLeft + " days";
+                    farmland.label = farmland.daysLeft + (farmland.daysLeft > 1 ? " days" : " day");
             }
         });
 
         this.trees.forEach((tree) => {
             if(tree.daysLeft > 0)
-                tree.daysLeft--;
+            {
+                tree.daysLeft -= amount;
+                if(tree.daysLeft < 0)
+                    tree.daysLeft = 0;
+            }
         });
     }
 
@@ -488,7 +475,7 @@ class Game {
 
                 // if not fed
                 if(!villager.fed)
-                    villager.happiness -= 5;
+                    villager.happiness -= (5 - this.facilities["housing"].level + 1);
             }
 
             // update happiness based on sickness
@@ -538,21 +525,19 @@ class Game {
             this.mutate = true;
 
             this.villagers.forEach(villager => {
-                let mutationChance = 0.25;
-
-                if(Math.random() < mutationChance)
+                if(Math.random() < global.MUTATION_CHANCE)
                 {
                     villager.mostEffectiveTask = Villager.generateTask();
                     villager.leastEffectiveTask = Villager.generateLeastEffectiveTask(villager.mostEffectiveTask);
                 }
 
-                else if(Math.random() < mutationChance)
+                if(Math.random() < global.MUTATION_CHANCE)
                 {
                     villager.mostFavoriteTask = Villager.generateTask();
                     villager.leastFavoriteTask = Villager.generateLeastFavoriteTask(villager.mostFavoriteTask);
                 }
 
-                else if(Math.random() < mutationChance)
+                if(Math.random() < global.MUTATION_CHANCE)
                 {
                     villager.favoriteFood = Villager.generateFavoriteFood();
                 }
@@ -587,7 +572,7 @@ class Game {
                     let currentPlayer = this.players[this.currentTurn];
                     currentPlayer.questsComplete++;
 
-                    Game.io.sockets.to(currentPlayer.id).emit("give_item", global.ITEMS.steel, 2);
+                    Game.io.sockets.to(currentPlayer.id).emit("give_item", global.ITEMS.steel, 1);
                     this.players.forEach(player => Game.io.sockets.to(player.id).emit("quest_complete", villager, currentPlayer.name));
                     villager.quest = null;
                     this.players.forEach(player => Game.io.sockets.to(player.id).emit("villager", villager));
@@ -639,12 +624,14 @@ class Game {
 
     checkDeathConditions() // return bool
     {
-        let totalHappiness = 0;
-        this.villagers.forEach(villager => totalHappiness += villager.happiness);
+        return true;
 
-        let avgHappiness = totalHappiness / this.villagers.length;
+        // let totalHappiness = 0;
+        // this.villagers.forEach(villager => totalHappiness += villager.happiness);
 
-        return avgHappiness <= global.DEATH_THRESHOLD;
+        // let avgHappiness = totalHappiness / this.villagers.length;
+
+        // return avgHappiness <= global.DEATH_THRESHOLD;
     }
 
     eventStart(event)
@@ -668,6 +655,7 @@ class Game {
                 }
             case "rainy_day":
                 {
+                    this.advanceCropGrowth(1);
                     this.players.forEach(player => {
                         Game.io.sockets.to(player.id).emit("set_variable", "cropGrowthModifier", -1);
                     });
@@ -743,6 +731,24 @@ class Game {
                             facility.progress = 0;
                     });
                 }
+            case "death":
+                {
+                    if(this.checkDeathConditions())
+                    {
+                        let index = Math.floor(Math.random() * this.villagers.length);
+                        let villager = this.villagers[index];
+                        this.removeVillagerFromFacility(villager);
+
+                        this.villagers.splice(index, 1);
+                        this.villagerFlee(villager);
+
+                        this.players.forEach(player => {
+                            Game.io.sockets.to(player.id).emit("villager_flee", villager);
+                            Game.io.sockets.to(player.id).emit("paths", this.paths);
+                        });
+                    }
+                    break;
+                }
             default: break;
         }
     }
@@ -774,24 +780,6 @@ class Game {
             case "summer_day":
                 {
                     global.SICK_CHANCE *= -1;
-                    break;
-                }
-            case "death":
-                {
-                    if(this.checkDeathConditions())
-                    {
-                        let index = Math.floor(Math.random() * this.villagers.length);
-                        let villager = this.villagers[index];
-                        this.removeVillagerFromFacility(villager);
-
-                        this.villagers.splice(index, 1);
-                        this.villagerFlee(villager);
-
-                        this.players.forEach(player => {
-                            Game.io.sockets.to(player.id).emit("villager_flee", villager);
-                            Game.io.sockets.to(player.id).emit("paths", this.paths);
-                        });
-                    }
                     break;
                 }
             default: break;
@@ -910,8 +898,7 @@ class Game {
 
     nextDay()
     {
-        this.updateFactory();
-        this.updateCropGrowth();
+        this.advanceCropGrowth(1);
         this.updateVillagers();
         this.updateFacilityProgress();
 

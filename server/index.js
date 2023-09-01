@@ -38,7 +38,7 @@ function hostGame(socket, playerName)
     console.log("host: " + socket.id);
 
     let roomId = generateRoomId();
-    let game = new Game(io, roomId);
+    let game = new Game(roomId);
     game.players.push(new Player(playerName, socket.id));
 
     socket.emit("refresh_lobby", game.players, roomId);
@@ -165,7 +165,6 @@ function startGame(roomId)
     game.initPaths();
     game.initVillagers();
     game.initFacilities();
-    game.initFactory();
     game.initBudget();
     game.initFarmland();
     game.initTrees();
@@ -187,7 +186,6 @@ function startGame(roomId)
         io.sockets.to(player.id).emit("villagers", game.villagers);
         io.sockets.to(player.id).emit("paths", game.paths);
         io.sockets.to(player.id).emit("facilities", game.facilities);
-        io.sockets.to(player.id).emit("factory", game.factory);
 
         let inventory = game.initInventory();
         inventory.forEach(item => io.sockets.to(player.id).emit("give_item", item, 1));
@@ -316,7 +314,6 @@ function reconnect(socket, _roomId, _socketId)
         socket.emit("villagers", game.villagers);
         socket.emit("paths", game.paths);
         socket.emit("facilities", game.facilities);
-        socket.emit("factory", game.factory);
 
         // let inventory = game.initInventory();
         // inventory.forEach(item => io.sockets.to(player.id).emit("give_item", item, 1));
@@ -407,7 +404,6 @@ function endTurn(_roomId)
 
         io.sockets.to(player.id).emit("villagers", game.villagers);
         io.sockets.to(player.id).emit("facilities", game.facilities);
-        io.sockets.to(player.id).emit("factory", game.factory);
         io.sockets.to(player.id).emit("farm", game.farm);
         io.sockets.to(player.id).emit("trees", game.trees, game.rolesPresent["scientist"] || game.npcPresent["scientist"]);
 
@@ -547,18 +543,6 @@ io.on("connection", (socket) => {
             socket.emit("give_item", global.ITEMS.apple, 1);
 
         socket.emit("give_item", global.ITEMS.wood, 5);
-    });
-
-    socket.on("collect_bricks", (_roomId) => {
-        let game = games[_roomId];
-
-        socket.emit("give_item", global.ITEMS.brick, game.factory.bricks);
-
-        game.factory.bricks = 0;
-
-        game.players.forEach(player => {
-            io.sockets.to(player.id).emit("factory", game.factory, true);
-        });
     });
 
     socket.on("budget", (_roomId, _budget) => {
