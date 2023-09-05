@@ -23,6 +23,7 @@ const UPGRADE_MATERIAL_COST = 10;
 const HEAL_VILLAGER_COST = 50;
 const CROP_GROWTH_TIME = 3;
 const APPLE_HAPPINESS_BOOST = 29;
+const FERTILIZED_BONUS = 4;
 const HARVEST_SEED_CHANCE = 0.1;
 const ACTION_POINTS = 8;
 
@@ -35,11 +36,13 @@ const ACTION_COST = {
     CUT_TREE: 1,
     ASSIGN_VILLAGER: 1,
     HEAL_VILLAGER: 1,
-    USE_MATERIAL: 1
+    USE_MATERIAL: 1,
+    SKILL: 8
 };
 
 let currentTurn = 0;
 let actionPoints = 0;
+let skillUsed = false;          // whether or not skill has been used this turn
 
 let day = 0;
 let season = "";
@@ -79,16 +82,24 @@ let priceMultiplier = 1;        // multiplier for shop items
 
 // ui ////////////////////////////////////////////////////////////////
 
+const ACTION_STATES = {
+    NORMAL: 0,
+    SELECT_FARMLAND: 1
+};
+
+let actionState = ACTION_STATES.NORMAL;
+
+
 const INVENTORY_BOX_SIZE = 2.5;
 const INVENTORY_BOX_MARGIN = 0.1;
 
 const INVENTORY_STATES = {
-    normal: 0,
-    selling: 1,
-    upgrading: 2
+    NORMAL: 0,
+    SELLING: 1,
+    UPGRADING: 2
 };
 
-let inventoryState = INVENTORY_STATES.normal;
+let inventoryState = INVENTORY_STATES.NORMAL;
 
 let heldItemStack = null;           // currently held item stack
 let assigningVillager = null;        // currently selected villager for assigning
@@ -116,6 +127,7 @@ let powerOnAnimation = new Animation(powerOnFrames, 5);
 // buttons ////////////////////////////////////////////////////////////////
 
 const button = {
+    skill: new Button(35*16, 14*16, 6*16, 2*16, "blue", "skill"),
     shop: new Button(35*16, 16.5*16, 6*16, 2*16, "green", "shop"),
     endTurn: new Button(35*16, 19*16, 6*16, 2*16, "pink", "end turn"),
 
@@ -137,6 +149,8 @@ const button = {
 socket.on("change_turn", (_currentTurn) => {
     currentTurn = _currentTurn;
     actionPoints = ACTION_POINTS;
+    skillUsed = false;
+    refreshSkillButton();
 
     button.endTurn.enabled = isCurrentTurn();
     refreshAssignButton();
@@ -442,6 +456,13 @@ function onClick(e)
         return;
     }
 
+    if(buttonClick(button.skill))
+    {
+        closeInventory();
+        useSkill();
+        return;
+    }
+
     if(selectedInfoType("farmland") && buttonClick(button.harvestCrop))
     {
         harvestCrop();
@@ -531,7 +552,14 @@ function onClick(e)
                 let farmland = farm[i];
                 if(!farmland.locked && mouseInteract(farmland))
                 {
-                    if(!heldItemStack || farmland.crop)
+                    if(actionState == ACTION_STATES.SELECT_FARMLAND)
+                    {
+                        farmland.fertilized = true;
+                        actionState = ACTION_STATES.NORMAL;
+                        useAction(ACTION_COST.SKILL);
+                        return;
+                    }
+                    else if(!heldItemStack || farmland.crop)
                     {
                         infoSelected = farmland;
                         return;
@@ -629,14 +657,14 @@ function onClick(e)
 
         if(buttonClick(button.sellItem))
         {
-            inventoryState = INVENTORY_STATES.selling;
+            inventoryState = INVENTORY_STATES.SELLING;
             refreshInventoryButtons();
             return;
         }
 
         if(buttonClick(button.upgradeMaterial))
         {
-            inventoryState = INVENTORY_STATES.upgrading;
+            inventoryState = INVENTORY_STATES.UPGRADING;
             refreshInventoryButtons();
             return;
         }
@@ -654,26 +682,26 @@ function onClick(e)
 
             if(mouseInteract(obj))
             {
-                if(inventoryState == INVENTORY_STATES.normal)
+                if(inventoryState == INVENTORY_STATES.NORMAL)
                 {
                     heldItemStack = inventory[i];
                     closeInventory();
                 }
-                else if(inventoryState == INVENTORY_STATES.selling && inventory[i].item.type == "food")
+                else if(inventoryState == INVENTORY_STATES.SELLING && inventory[i].item.type == "food")
                 {
                     sellItem(inventory[i]);
                     return;
                 }
-                else if(inventoryState == INVENTORY_STATES.upgrading && inventory[i].item.type == "material" && !inventory[i].item.upgraded)
+                else if(inventoryState == INVENTORY_STATES.UPGRADING && inventory[i].item.type == "material" && !inventory[i].item.upgraded)
                 {
                     upgradeMaterial(inventory[i]);
                 }
             }
         }
 
-        if(inventoryState != INVENTORY_STATES.normal)
+        if(inventoryState != INVENTORY_STATES.NORMAL)
         {
-            inventoryState = INVENTORY_STATES.normal;
+            inventoryState = INVENTORY_STATES.NORMAL;
             refreshInventoryButtons();
         }
     }
@@ -860,7 +888,7 @@ function closeInventory()
         refreshAssignButton();
         refreshHealButton();
 
-        inventoryState = INVENTORY_STATES.normal;
+        inventoryState = INVENTORY_STATES.NORMAL;
         refreshInventoryButtons();
     }
 }
@@ -908,6 +936,38 @@ function useAction(amount)
     refreshHealButton();
     refreshPickTreeButton();
     refreshUpgradeFacilityButton();
+    refreshSkillButton();
+
+    button.harvestCrop.enabled = actionPoints >= ACTION_COST.HARVEST_CROP;
+}
+
+function useSkill()
+{
+    skillUsed = true;
+
+    switch(role)
+    {
+        case "scientist":
+            {
+                useAction(ACTION_COST.SKILL);
+            }
+            break;
+        case "farmer":
+            {
+                actionState = ACTION_STATES.SELECT_FARMLAND;
+                button.skill.enabled = false;
+            }
+            break;
+        case "engineer":
+            {
+                socket.emit("engineer_skill", inventory);
+            }
+            break;
+        default:
+            break;
+    }
+
+    console.log(ACTION_COST.SKILL);
 }
 
 function plantCrop(farmland)
@@ -925,7 +985,7 @@ function plantCrop(farmland)
 function harvestCrop()
 {
     let farmland = infoSelected;
-    let amount = Math.floor(Math.random() * (farmland.amount - 2 + 1)) + 2;
+    let amount = Math.floor(Math.random() * (farmland.amount - 2 + 1)) + 2 + (farmland.fertilized ? FERTILIZED_BONUS : 0);
 
     giveItem(farmland.crop.food, amount);
 
@@ -1229,7 +1289,7 @@ function refreshTrees()
 
 function refreshInventoryButtons()
 {
-    let enable = isCurrentTurn() && getActiveWindow() == "inventory" && inventoryState == INVENTORY_STATES.normal;
+    let enable = isCurrentTurn() && getActiveWindow() == "inventory" && inventoryState == INVENTORY_STATES.NORMAL;
 
     button.sellItem.enabled = enable;
     button.upgradeMaterial.enabled = enable && role == "engineer" && budget >= UPGRADE_MATERIAL_COST;
@@ -1320,6 +1380,17 @@ function refreshCutTreeButton()
     }
 
     button.cutTree.enabled = !infoSelected.cut;
+}
+
+function refreshSkillButton()
+{
+    if(role != "scientist" && role != "farmer")
+    {
+        button.skill.enabled = false;
+        return;
+    }
+
+    button.skill.enabled = isCurrentTurn() && actionState == ACTION_STATES.NORMAL && actionPoints >= ACTION_COST.SKILL;
 }
 
 
@@ -1568,6 +1639,8 @@ function drawFarmland()
 {
     farm.forEach(obj => {
         let farmImg = obj.locked ? img.farmlandLocked : img.farmland;
+        if(obj.fertilized) farmImg = img.farmlandFertilized;
+
         ctx.drawImage(farmImg, obj.interactBox.x * SCALE, obj.interactBox.y * SCALE, 16 * SCALE, 16 * SCALE);
 
         if(obj.crop)
@@ -1843,7 +1916,10 @@ function drawInfoPanel()
 
                 ctx.font = '16px Kenney Mini Square';
                 ctx.fillText(farmland.crop.food.name, 16*4*SCALE, 16*10*SCALE);
-                ctx.fillText((farmland.amount > 2 ? "+ 2-" : "+ ") + farmland.amount, 16*4*SCALE, 16*11*SCALE);
+
+                let cropMin = 2 + (farmland.fertilized ? FERTILIZED_BONUS : 0);
+                let cropMax = farmland.amount + (farmland.fertilized ? FERTILIZED_BONUS : 0);
+                ctx.fillText((cropMax > cropMin ? `+ ${cropMin}-` : "+ ") + cropMax, 16*4*SCALE, 16*11*SCALE);
 
                 if(farmland.daysLeft == 0)
                 {
@@ -1857,6 +1933,12 @@ function drawInfoPanel()
             {
                 ctx.font = '16px Kenney Mini Square';
                 ctx.fillText(farmland.label, 16*4*SCALE, 16*10*SCALE);
+            }
+
+            if(farmland.fertilized)
+            {
+                ctx.fillStyle = "maroon";
+                ctx.fillText("fertilized", 16*4*SCALE, 16*14*SCALE);
             }
 
             ctx.textAlign = "left";
@@ -1938,16 +2020,16 @@ function drawActionPanel()
     }
     // ctx.fillText(event ? event.name : "", 16*35*SCALE, 16*7*SCALE);
 
-    if(role == "scientist")
+    if(role == "scientist" && skillUsed)
     {
-        ctx.fillText("next event: ", 16*35*SCALE, 16*11*SCALE);
-        ctx.fillText(nextEvent ? (nextEvent.type == 0 ? "good" : "bad") : "", 16*35*SCALE, 16*12*SCALE);
+        ctx.fillText("next event: " + (nextEvent ? nextEvent.name /*(nextEvent.type == 0 ? "good" : "bad")*/ : "none"), 16*35*SCALE, 16*11*SCALE);
     }
 
     ctx.font = "20px Kenney Mini Square";
-    ctx.fillText("action points:   " + actionPoints, 16*35*SCALE, 16*14*SCALE);
+    ctx.fillText("action points:   " + actionPoints, 16*35*SCALE, 16*12*SCALE);
 
 
+    drawButton(button.skill);
     drawButton(button.shop);
     drawButton(button.endTurn);
 }
@@ -2085,13 +2167,13 @@ function drawInventory()
             let valid = false;
             switch(inventoryState)
             {
-                case INVENTORY_STATES.normal:
+                case INVENTORY_STATES.NORMAL:
                     valid = true;
                     break;
-                case INVENTORY_STATES.selling:
+                case INVENTORY_STATES.SELLING:
                     valid = inventory[i].item.type == "food";
                     break;
-                case INVENTORY_STATES.upgrading:
+                case INVENTORY_STATES.UPGRADING:
                     valid = inventory[i].item.type == "material" && !inventory[i].item.upgraded;
                     break;
                 default: break;
@@ -2149,7 +2231,7 @@ function drawInventory()
                     16*(9 + (Math.floor(i / 8) + 1) * INVENTORY_BOX_SIZE - 1.75)*SCALE);
             }
 
-            if(inventory[i].item.type == "food" && inventoryState == INVENTORY_STATES.selling)
+            if(inventory[i].item.type == "food" && inventoryState == INVENTORY_STATES.SELLING)
             {
                 ctx.fillStyle = "green";
                 ctx.fillText(getSellPrice(),

@@ -617,6 +617,12 @@ io.on("connection", (socket) => {
         }
     });
 
+    socket.on("engineer_skill", (_inventory) => {
+        _inventory.forEach(itemStack => {
+            
+        });
+    });
+
     socket.on("disconnect", () => {
         console.log("disconnected: " + socket.id);
         

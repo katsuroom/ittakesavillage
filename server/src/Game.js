@@ -772,7 +772,7 @@ class Game {
                 }
             case "black_friday":
                 {
-                    game.players.forEach(player => {
+                    this.players.forEach(player => {
                         Game.io.sockets.to(player.id).emit("set_variable", "priceMultiplier", 1);
                     });
                     break;

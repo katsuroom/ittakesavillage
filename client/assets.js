@@ -29,6 +29,7 @@ export const img = {
     powerOn:            loadImage("assets/art/power_on.png"),
     farmland:           loadImage("assets/art/farmland.png"),
     farmlandLocked:     loadImage("assets/art/farmland_locked.png"),
+    farmlandFertilized: loadImage("assets/art/farmland_fertilized.png"),
     plant:              loadImage("assets/art/plant.png"),
     treeBare:           loadImage("assets/art/tree_bare.png"),
     treeRipe:           loadImage("assets/art/tree_ripe.png"),
