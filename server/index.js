@@ -15,7 +15,7 @@ const io = new Server(httpServer, {
 
 app.use(express.static("../client"));
 
-httpServer.listen(5000);
+httpServer.listen(443);
 
 
 // game variables ////////////////////////////////////////////////////////////////
