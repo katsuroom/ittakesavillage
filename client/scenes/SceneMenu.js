@@ -221,6 +221,11 @@ export function draw()
     ctx.fillStyle = "red";
     ctx.fillText(errorMessage, 13*16*SCALE, 16.5*16*SCALE);
 
+    ctx.fillStyle = "black";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "bottom";
+    ctx.fillText("2023/09/16", 20*SCALE, canvas.height - 20*SCALE);
+
     if(sm.currentScene == sm.SCENE.menu)
         requestAnimationFrame(draw);
 }
