@@ -1,4 +1,4 @@
-export const socket = io("ws://localhost:5000");
+export const socket = io();
 
 export const canvas = document.getElementById("canvas");
 export const ctx = canvas.getContext("2d", { willReadFrequently: true });
