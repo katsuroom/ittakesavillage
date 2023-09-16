@@ -208,6 +208,7 @@ export function draw()
 
     ctx.font = "48px Kenney Mini Square";
     ctx.fillStyle = "black";
+    ctx.textBaseline = "top";
     ctx.textAlign = "center";
     ctx.fillText("It  Takes  a  Village", canvas.width / 2, 60*SCALE);
 
