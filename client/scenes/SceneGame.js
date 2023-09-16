@@ -23,11 +23,11 @@ const UPGRADE_MATERIAL_COST = 10;
 const HEAL_VILLAGER_COST = 50;
 const CROP_GROWTH_TIME = 3;
 const APPLE_HAPPINESS_BOOST = 10;
-const FERTILIZED_BONUS = 4;
+const FERTILIZED_BONUS = 3;
 const HARVEST_SEED_CHANCE = 0.1;
 const ACTION_POINTS = 8;
 
-const ACTION_COST = {
+let ACTION_COST = {
     UPGRADE_FACILITY: 4,
     COLLECT_BRICKS: 2,
     PLANT_CROP: 1,
@@ -73,6 +73,7 @@ let lootAmount = 0;
 // role specific
 
 let healChances = 0;            // for doctor only
+let reputation = 0;
 
 // event variarbles
 
@@ -84,7 +85,8 @@ let priceMultiplier = 1;        // multiplier for shop items
 
 const ACTION_STATES = {
     NORMAL: 0,
-    SELECT_FARMLAND: 1
+    SELECT_FARMLAND: 1,
+    SELECT_VILLAGER: 2
 };
 
 let actionState = ACTION_STATES.NORMAL;
@@ -290,9 +292,6 @@ socket.on("mutate", () => {
 
 socket.on("budget", (_budget) => {
     budget = _budget;
-
-    if(budget <= 0)
-        gameOver("GAME OVER: Budget hit 0.");
 });
 
 socket.on("villager", (_villager) => {
@@ -327,6 +326,7 @@ socket.on("villagers", (_villagers) => {
             {
                 newVillager = _villagers[i];
                 notifications.push(new NotificationArrival(newVillager));
+                triggerNotifications();
                 break;
             }
         }
@@ -418,6 +418,10 @@ socket.on("quest_complete", (_villager, _playerName) => {
     triggerNotifications();
 });
 
+socket.on("inventory", (_inventory) => {
+    inventory = _inventory;
+});
+
 socket.on("set_variable", (_var, _value) => {
     switch(_var)
     {
@@ -431,6 +435,10 @@ socket.on("set_variable", (_var, _value) => {
             break;
     }
 });
+
+socket.on("reputation", (_reputation) => {
+    reputation = _reputation;
+})
 
 
 // event handlers ////////////////////////////////////////////////////////////////
@@ -557,6 +565,7 @@ function onClick(e)
                         farmland.fertilized = true;
                         actionState = ACTION_STATES.NORMAL;
                         useAction(ACTION_COST.SKILL);
+                        socket.emit("farm", roomId, farm);
                         return;
                     }
                     else if(!heldItemStack || farmland.crop)
@@ -605,6 +614,26 @@ function onClick(e)
         villagers.forEach(villager => {
             if(mouseInteract(villager))
             {
+                if(actionState == ACTION_STATES.SELECT_VILLAGER)
+                {
+                    actionState = ACTION_STATES.NORMAL;
+                    useAction(ACTION_COST.SKILL);
+
+                    if(role == "sociologist")
+                    {
+                        villager.leastEffectiveTask = "";
+                        villager.leastFavoriteTask = "";
+                        socket.emit("villager", roomId, villager);
+                    }
+
+                    else if(role == "doctor")
+                    {
+                        villager.immune = true;
+                        socket.emit("villager", roomId, villager);
+                    }
+                    
+                }
+
                 if(assigningVillager)
                 {
                     assigningVillager = null;
@@ -817,6 +846,9 @@ export function init()
     canvas.addEventListener("mousedown", onMouseDown);
     canvas.addEventListener("mouseup", onMouseUp);
     window.addEventListener("keydown", onKeyDown);
+
+    if(role == "scientist")
+        ACTION_COST.SKILL = 4;
 }
 
 export function exit()
@@ -947,27 +979,45 @@ function useSkill()
 
     switch(role)
     {
+        case "chief":
+        {
+            reputation++;
+            socket.emit("reputation", roomId, reputation);
+            useAction(ACTION_COST.SKILL);
+        }
+        break;
+        case "doctor":
+        {
+            actionState = ACTION_STATES.SELECT_VILLAGER;
+            button.skill.enabled = false;
+        }
+        break;
         case "scientist":
-            {
-                useAction(ACTION_COST.SKILL);
-            }
-            break;
+        {
+            useAction(ACTION_COST.SKILL);
+        }
+        break;
+        case "sociologist":
+        {
+            actionState = ACTION_STATES.SELECT_VILLAGER;
+            button.skill.enabled = false;
+        }
+        break;
         case "farmer":
-            {
-                actionState = ACTION_STATES.SELECT_FARMLAND;
-                button.skill.enabled = false;
-            }
-            break;
+        {
+            actionState = ACTION_STATES.SELECT_FARMLAND;
+            button.skill.enabled = false;
+        }
+        break;
         case "engineer":
-            {
-                socket.emit("engineer_skill", inventory);
-            }
-            break;
+        {
+            socket.emit("engineer_skill", inventory);
+            useAction(ACTION_COST.SKILL);
+        }
+        break;
         default:
             break;
     }
-
-    console.log(ACTION_COST.SKILL);
 }
 
 function plantCrop(farmland)
@@ -1023,6 +1073,8 @@ function cutTree()
 
 function giveItem(item, amount)
 {
+    if(amount <= 0) return;
+
     for(let i = 0; i < inventory.length; i++)
     {
         if(inventory[i].item.id == item.id)
@@ -1384,12 +1436,6 @@ function refreshCutTreeButton()
 
 function refreshSkillButton()
 {
-    if(role != "scientist" && role != "farmer")
-    {
-        button.skill.enabled = false;
-        return;
-    }
-
     button.skill.enabled = isCurrentTurn() && actionState == ACTION_STATES.NORMAL && actionPoints >= ACTION_COST.SKILL;
 }
 
@@ -1414,6 +1460,10 @@ function getTextColor(text, def)
         case "least eff:":
         case "least fav:":
             return "mediumpurple";
+
+        case "healthy":
+            if(selectedInfoType("villager"))
+                return infoSelected.immune ? "aqua" : def;
 
         default:
             return def;
@@ -1727,14 +1777,14 @@ function drawTitleBar()
     ctx.fillStyle = "black";
     ctx.fillText(currentTurnText, x, y);
 
-    // ctx.textAlign = "right";
-    // let actionPointsText = "action points:   " + actionPoints;
-    // x = 16*33.5*SCALE;
-    // y = 16*0.5*SCALE;
-    // ctx.strokeStyle = "white";
-    // ctx.strokeText(actionPointsText, x, y);
-    // ctx.fillStyle = "black";
-    // ctx.fillText(actionPointsText, x, y);
+    ctx.textAlign = "right";
+    let reputationText = "reputation:   " + reputation;
+    x = 16*33.5*SCALE;
+    y = 16*0.5*SCALE;
+    ctx.strokeStyle = "white";
+    ctx.strokeText(reputationText, x, y);
+    ctx.fillStyle = "black";
+    ctx.fillText(reputationText, x, y);
 
     ctx.restore();
 }
@@ -2022,7 +2072,7 @@ function drawActionPanel()
 
     if(role == "scientist" && skillUsed)
     {
-        ctx.fillText("next event: " + (nextEvent ? nextEvent.name /*(nextEvent.type == 0 ? "good" : "bad")*/ : "none"), 16*35*SCALE, 16*11*SCALE);
+        ctx.fillText("next event: " + (nextEvent ? (nextEvent.type == 0 ? "good" : "bad") : "none"), 16*35*SCALE, 16*11*SCALE);
     }
 
     ctx.font = "20px Kenney Mini Square";

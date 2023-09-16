@@ -40,6 +40,8 @@ class Villager extends Interactable {
         this.quest = null;
 
         this.fed = false;
+
+        this.immune = false;
     }
 
     generateGender()            // char

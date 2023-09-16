@@ -434,6 +434,7 @@ io.on("connection", (socket) => {
     socket.on("reconnect", (_roomId, _socketId) => reconnect(socket, _roomId, _socketId));
 
     socket.on("farm", (_roomId, _farm) => {
+        console.log("bruh");
         let game = games[_roomId];
         game.farm = _farm;
         game.players.forEach(player => io.sockets.to(player.id).emit("farm", game.farm));
@@ -553,6 +554,24 @@ io.on("connection", (socket) => {
         });
     });
 
+    socket.on("reputation", (_roomId, _reputation) => {
+        let game = games[_roomId];
+
+        if(_reputation == global.MAX_VILLAGE_REPUTATION)
+        {
+            _reputation = 0;
+            game.createVillager();
+            game.sortVillagers();
+        }
+
+        game.players.forEach(player => {
+            io.sockets.to(player.id).emit("reputation", _reputation);
+
+            if(_reputation == 0)
+                io.sockets.to(player.id).emit("villagers", game.villagers);
+        });
+    });
+
     socket.on("upgrade_facility", (_roomId, _facility) => {
         let game = games[_roomId];
         let facility = game.facilities[_facility.label];
@@ -618,9 +637,31 @@ io.on("connection", (socket) => {
     });
 
     socket.on("engineer_skill", (_inventory) => {
-        _inventory.forEach(itemStack => {
-            
-        });
+        let amount = 0;
+        let upgradedAmount = 0 ;
+
+        for(let i = 0; i < _inventory.length; i++)
+        {
+            let itemStack = _inventory[i];
+            if(itemStack.item.id == "brick")
+            {
+                itemStack.item.upgraded ? upgradedAmount += itemStack.amount : amount += itemStack.amount;
+                _inventory.splice(i, 1);
+            }
+        }
+
+        socket.emit("inventory", _inventory);
+
+        if(amount + upgradedAmount > 0)
+        {
+            let upgradedSteel = global.ITEMS.steel.clone();
+            upgradedSteel.name += "★";
+            upgradedSteel.upgraded = true;
+            upgradedSteel.progress = upgradedSteel.upgradedProgress;
+
+            socket.emit("give_item", global.ITEMS.steel, amount);
+            socket.emit("give_item", upgradedSteel, upgradedAmount);
+        }
     });
 
     socket.on("disconnect", () => {

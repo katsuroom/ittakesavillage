@@ -9,6 +9,11 @@ class Material extends Item {
         this.upgradedProgress = upgradedProgress;
         this.upgraded = false;
     }
+
+    clone()
+    {
+        return new Material(this.name, this.id, this.progress, this.upgradedProgress);
+    }
 };
 
 module.exports = Material;

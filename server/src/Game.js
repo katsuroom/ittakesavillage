@@ -182,11 +182,11 @@ class Game {
     {
         switch(this.players.length)
         {
-            case 1: this.budget = 1600; break;
-            case 2: this.budget = 1200; break;
-            case 3: this.budget = 800; break;
+            case 1: this.budget = 1200; break;
+            case 2: this.budget = 1000; break;
+            case 3: this.budget = 600; break;
             case 4: this.budget = 400; break;
-            case 5: this.budget = 300; break;
+            case 5: this.budget = 250; break;
             case 6: this.budget = 150; break;
             default: break;
         }
@@ -491,13 +491,16 @@ class Game {
             if(villager.happiness > 100)
                 villager.happiness = 100;
 
+            if(villager.quest.type == "task" && villager.currentTask == villager.quest.targetValue[0])
+                villager.quest.targetValue[1] -= 1;
+
             // subtract hunger
             if(villager.hunger > 0) villager.hunger--;
 
             villager.fed = false;
 
             // chance of sickness
-            if(villager.currentTask != "power" && global.SICK_CHANCE > 0)
+            if(!villager.immune && global.SICK_CHANCE > 0)
             {
                 let sick = false;
                 if(villager.hunger == 0)
@@ -511,10 +514,6 @@ class Game {
                     villager.labelColor = "rgb(0,191,0)";
                 }
             }
-
-            // mutation
-            
-
         });
     }
 
@@ -541,6 +540,14 @@ class Game {
                 {
                     villager.favoriteFood = Villager.generateFavoriteFood();
                 }
+
+                if(villager.leastEffectiveTask == "")
+                    villager.leastEffectiveTask = Villager.generateLeastEffectiveTask(villager.mostEffectiveTask);
+
+                if(villager.leastFavoriteTask == "")
+                    villager.leastFavoriteTask = Villager.generateLeastFavoriteTask(villager.mostFavoriteTask);
+
+                villager.immune = false;
             });
         }
     }
@@ -556,6 +563,9 @@ class Game {
                 {
                     case "happiness":
                         completed = villager.happiness >= villager.quest.targetValue;
+                        break;
+                    case "task":
+                        completed = villager.quest.targetValue[1] == 0;
                         break;
                     case "water":
                     case "farming":
@@ -682,25 +692,7 @@ class Game {
                 }
             case "drought":
                 {
-                    let droughtChance = 0;
-                    switch(this.facilities["water"].level)
-                    {
-                        case 1: droughtChance = 0.6; break;
-                        case 2: droughtChance = 0.45; break;
-                        case 3: droughtChance = 0.3; break;
-                        case 4: droughtChance = 0.15; break;
-                        case 5: droughtChance = 0; break;
-                        default: break;
-                    }
-
-                    this.farm.forEach(farmland => {
-                        if(Math.random() < droughtChance)
-                        {
-                            farmland.crop = null;
-                            farmland.label = "empty";
-                        }
-                    });
-
+                    eventUpdate(event);
                     break;
                 }
             case "disease":
@@ -757,6 +749,33 @@ class Game {
     {
         // console.log("update");
         // for events that have effects every day while action
+        switch(event.id)
+        {
+            case "drought":
+                {
+                    let droughtChance = 0;
+                    switch(this.facilities["water"].level)
+                    {
+                        case 1: droughtChance = 0.6; break;
+                        case 2: droughtChance = 0.45; break;
+                        case 3: droughtChance = 0.3; break;
+                        case 4: droughtChance = 0.15; break;
+                        case 5: droughtChance = 0; break;
+                        default: break;
+                    }
+
+                    this.farm.forEach(farmland => {
+                        if(Math.random() < droughtChance)
+                        {
+                            farmland.crop = null;
+                            farmland.label = "empty";
+                        }
+                    });
+
+                    break;
+                }
+            default: break;
+        }
     }
 
     eventEnd(event)

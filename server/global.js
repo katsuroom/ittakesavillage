@@ -20,10 +20,12 @@ const FARMLAND_LOCKED = true;
 const SICK_CHANCE = 0.08;
 const HUNGRY_SICK_CHANCE = 0.25;
 const MUTATION_FREQUENCY = 5;
-const MUTATION_CHANCE = 0.25;
+const MUTATION_CHANCE = 0.50;
 
 const DEATH_THRESHOLD = 40;
 const FLOOD_DAMAGE = 20;
+
+const MAX_VILLAGE_REPUTATION = 3;
 
 const ITEMS = {
     cucumber: new Food("cucumber", "cucumber"),
@@ -57,6 +59,8 @@ const QUESTS = [
     QUESTS.push(new Quest(facility, 2, facility + " level = 2"));
     QUESTS.push(new Quest(facility, 3, facility + " level = 3"));
     QUESTS.push(new Quest(facility, 4, facility + " level = 4"));
+
+    QUESTS.push(new Quest("task", [facility, 5], facility + " 5 days"));
 });
 
 const SHOP = {
@@ -97,7 +101,7 @@ const EVENTS = {
     "summer_day": new Event("Summer Day", "summer_day", "villagers are temporarily immune to sickness.", 0),
 
     // negative
-    "drought": new Event("Drought", "drought", "some crops have died.", 1),
+    "drought": new Event("Drought", "drought", "some crops will die each day.", 1),
     "disease": new Event("Disease", "disease", "some villagers have become ill.", 1),
     "heat_stroke": new Event("Heat Stroke", "heat_stroke", "villager progress is slowed.", 1),
     "death": new Event("Death", "death", "a villager will die if happiness is not raised.", 1),
@@ -107,10 +111,10 @@ const EVENTS = {
 const EVENTS_SPRING = new RandomTable([
     new Option(EVENTS["cloudy_day"], 1),
     new Option(EVENTS["harvest"], 11),
-    new Option(EVENTS["rainy_day"], 20),
+    new Option(EVENTS["rainy_day"], 15),
     new Option(EVENTS["free_cake"], 2),
     new Option(EVENTS["black_friday"], 8),
-    new Option(EVENTS["drought"], 1),
+    new Option(EVENTS["drought"], 2),
     new Option(EVENTS["disease"], 5),
     new Option(EVENTS["heat_stroke"], 8),
     // new Option(EVENTS["death"], 8),
@@ -133,9 +137,9 @@ const EVENTS_SUMMER = new RandomTable([
 
 const EVENTS_AUTUMN = new RandomTable([
     new Option(EVENTS["cloudy_day"], 1),
-    new Option(EVENTS["harvest"], 20),
+    new Option(EVENTS["harvest"], 10),
     new Option(EVENTS["rainy_day"], 10),
-    new Option(EVENTS["free_cake"], 8),
+    new Option(EVENTS["free_cake"], 5),
     new Option(EVENTS["black_friday"], 7),
     new Option(EVENTS["drought"], 10),
     new Option(EVENTS["disease"], 15),
@@ -146,7 +150,7 @@ const EVENTS_AUTUMN = new RandomTable([
 
 const EVENTS_WINTER = new RandomTable([
     new Option(EVENTS["cloudy_day"], 1),
-    new Option(EVENTS["free_cake"], 20),
+    new Option(EVENTS["free_cake"], 10),
     new Option(EVENTS["black_friday"], 10),
     new Option(EVENTS["drought"], 20),
     new Option(EVENTS["disease"], 30),
@@ -178,6 +182,7 @@ module.exports = {
     MUTATION_CHANCE,
     DEATH_THRESHOLD,
     FLOOD_DAMAGE,
+    MAX_VILLAGE_REPUTATION,
     TREE_COUNT,
     TREE_GROWTH_TIME,
     ITEMS,
