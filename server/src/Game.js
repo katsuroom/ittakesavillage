@@ -491,7 +491,7 @@ class Game {
             if(villager.happiness > 100)
                 villager.happiness = 100;
 
-            if(villager.quest.type == "task" && villager.currentTask == villager.quest.targetValue[0])
+            if(villager.quest && villager.quest.type == "task" && villager.currentTask == villager.quest.targetValue[0])
                 villager.quest.targetValue[1] -= 1;
 
             // subtract hunger
