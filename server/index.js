@@ -15,7 +15,7 @@ const io = new Server(httpServer, {
 
 app.use(express.static("../client"));
 
-httpServer.listen(443);
+httpServer.listen(5000);
 
 
 // game variables ////////////////////////////////////////////////////////////////
@@ -434,7 +434,6 @@ io.on("connection", (socket) => {
     socket.on("reconnect", (_roomId, _socketId) => reconnect(socket, _roomId, _socketId));
 
     socket.on("farm", (_roomId, _farm) => {
-        console.log("bruh");
         let game = games[_roomId];
         game.farm = _farm;
         game.players.forEach(player => io.sockets.to(player.id).emit("farm", game.farm));
@@ -517,6 +516,14 @@ io.on("connection", (socket) => {
 
     socket.on("end_turn", (_roomId) => endTurn(_roomId));
 
+    socket.on("trees", (_roomId, _trees) => {
+        let game = games[_roomId];
+        game.trees = _trees;
+        game.players.forEach(player => {
+            io.sockets.to(player.id).emit("trees", game.trees, true);
+        });
+    })
+
     socket.on("pick_tree", (_roomId, _treeId) => {
 
         let game = games[_roomId];
@@ -526,7 +533,11 @@ io.on("connection", (socket) => {
             io.sockets.to(player.id).emit("trees", game.trees, true);
         });
 
-        socket.emit("give_item", global.ITEMS.apple, 1);
+        let tree = game.trees.find(tree => tree.id == _treeId);
+        if(tree.fertilized)
+            socket.emit("give_item", global.ITEMS.apple, 2);
+        else
+            socket.emit("give_item", global.ITEMS.apple, 1);
     });
 
     socket.on("cut_tree", (_roomId, _treeId) => {

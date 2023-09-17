@@ -9,6 +9,7 @@ class Tree extends Interactable {
 
         this.daysLeft = 0;
         this.cut = false;
+        this.fertilized = false;
         
         this.infoType = "tree";
     }

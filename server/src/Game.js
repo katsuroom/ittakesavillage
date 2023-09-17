@@ -40,9 +40,11 @@ class Game {
         this.currentTurn = 0;
 
         this.day = 1;
-        this.season = "spring";
-        this.nextSeason = "summer";
-        this.daysUntilNextSeason = global.SEASONS[0].days;
+
+        this.seasonIndex = 0;
+        this.season = global.SEASONS[this.seasonIndex].name;
+        this.nextSeason = global.SEASONS[this.seasonIndex + 1].name;
+        this.daysUntilNextSeason = global.SEASONS[this.seasonIndex].days;
 
         this.event = null;
         this.nextEvent = null;
@@ -61,7 +63,7 @@ class Game {
             "farming": new Facility(20),
             "education": new Facility(20),
             "housing": new Facility(20),
-            "power": new Facility(20)
+            "power": new Facility(12)
         };
     }
 
@@ -461,6 +463,7 @@ class Game {
 
     updateVillagers()
     {
+        return;
         this.villagers.forEach(villager => {
             
             // update happiness based on hunger, except for day 1
@@ -646,6 +649,9 @@ class Game {
 
     eventStart(event)
     {
+        if(event.blocked)
+            return;
+
         switch(event.id)
         {
             case "harvest":
@@ -673,7 +679,7 @@ class Game {
                 }
             case "free_cake":
                 {
-                    let villager = this.createVillager();
+                    this.createVillager();
                     this.sortVillagers();
                     break;
                 }
@@ -692,7 +698,7 @@ class Game {
                 }
             case "drought":
                 {
-                    eventUpdate(event);
+                    this.eventUpdate(event);
                     break;
                 }
             case "disease":
@@ -749,6 +755,9 @@ class Game {
     {
         // console.log("update");
         // for events that have effects every day while action
+        if(event.blocked)
+            return;
+
         switch(event.id)
         {
             case "drought":
@@ -780,6 +789,9 @@ class Game {
 
     eventEnd(event)
     {
+        if(event.blocked)
+            return;
+
         switch(event.id)
         {
             case "rainy_day":
@@ -817,9 +829,11 @@ class Game {
             
             if(this.facilities["power"].level > 1)
             {
-                let duration = this.nextEvent.duration;
-                this.event = global.EVENTS.cloudy_day.clone();
-                this.event.duration = duration;
+                this.event = this.nextEvent;
+                // let duration = this.nextEvent.duration;
+                // this.event = global.EVENTS.cloudy_day.clone();
+                this.event.blocked = true;
+                // this.event.duration = duration;
 
                 this.facilities["power"].level = 1;
                 this.facilities["power"].progress = 0;
@@ -841,7 +855,7 @@ class Game {
         // calculate season for next event
         let dayCount = this.day + this.event.duration;
 
-        if(dayCount > 60) return null;
+        if(dayCount > 40) return null;
 
         let season = "";
 

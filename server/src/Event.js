@@ -7,6 +7,8 @@ class Event {
         this.type = type;                   // int: good = 0, bad = 1
         
         this.duration = 0;
+
+        this.blocked = false;
     }
 
     clone()

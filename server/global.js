@@ -83,6 +83,9 @@ const SEASONS = [
     new Season("summer", 10),
     new Season("autumn", 10),
     new Season("winter", 10),
+
+    // new Season("winter", 40),
+
     new Season("game end", 0)
 ];
 

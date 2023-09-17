@@ -33,11 +33,13 @@ export const img = {
     plant:              loadImage("assets/art/plant.png"),
     treeBare:           loadImage("assets/art/tree_bare.png"),
     treeRipe:           loadImage("assets/art/tree_ripe.png"),
+    treeFertilized:     loadImage("assets/art/tree_fertilized.png"),
     treeStump:          loadImage("assets/art/tree_stump.png"),
     cloudShadows:       loadImage("assets/art/cloud_shadows.png"),
     puddles:            loadImage("assets/art/puddles.png"),
     rain0:              loadImage("assets/art/rain0.png"),
     rain1:              loadImage("assets/art/rain1.png"),
+    heart:              loadImage("assets/art/heart.png"),
 
     // items
     "cucumber":         loadImage("assets/art/cucumber.png"),
@@ -71,6 +73,13 @@ export const img = {
 for(let i = 1; i <= 26; i++)
     img["power_on_" + i] = loadImage("assets/art/power_on/power_on_" + i + ".png");
 
+
+export const audio = {
+    "bgm": new Audio("assets/audio/bgm.mp3")
+};
+
+audio.bgm.loop = true;
+audio.bgm.volume = 0.25;
 
 const font = {
     miniSquare:         loadFont("Kenney Mini Square", "url(assets/fonts/Kenney%20Mini%20Square.ttf)")

@@ -175,6 +175,24 @@ export function drawVillager(villager, x, y, scale)
         (y - 16) * SCALE);
 }
 
+export function drawGrayscale(image, x, y, width, height)
+{
+    ctx.drawImage(image, x, y, width, height);
+
+    let data = ctx.getImageData(x, y, width, height);
+    let pixels = data.data;
+    for(let i = 0; i < pixels.length; i += 4)
+    {
+        let lightness = (pixels[i] + pixels[i + 1] + pixels[i + 2]) / 3;
+        lightness = Math.max(0, lightness - 10);
+
+        pixels[i] = lightness;
+        pixels[i+1] = lightness;
+        pixels[i+2] = lightness;
+    }
+    ctx.putImageData(data, x, y);
+}
+
 export function gameOver(msg)
 {
     canvas.style.visibility = "hidden";

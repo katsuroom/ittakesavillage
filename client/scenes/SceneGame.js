@@ -1,7 +1,7 @@
 import * as global from "../global.js";
 Object.entries(global).forEach(([name, exported]) => window[name] = exported);
 
-import {img} from "../assets.js";
+import {img, audio} from "../assets.js";
 
 import * as sm from "../src/SceneManager.js";
 import { Button } from "../src/Button.js";
@@ -37,7 +37,7 @@ let ACTION_COST = {
     ASSIGN_VILLAGER: 1,
     HEAL_VILLAGER: 1,
     USE_MATERIAL: 1,
-    SKILL: 8
+    SKILL: 6
 };
 
 let currentTurn = 0;
@@ -69,11 +69,16 @@ let shop = [];                  // array of shop items
 let dailyLoot = [];             // array of available loot items
 let lootAmount = 0;
 
+let upgrades = 0;
+
 
 // role specific
 
-let healChances = 0;            // for doctor only
-let reputation = 0;
+let healChances = 0;            // doctor
+let reputation = 0;             // chief only
+let displayHappiness = false;   // sociologist only
+
+
 
 // event variarbles
 
@@ -82,6 +87,8 @@ let priceMultiplier = 1;        // multiplier for shop items
 
 
 // ui ////////////////////////////////////////////////////////////////
+
+let musicOn = true;
 
 const ACTION_STATES = {
     NORMAL: 0,
@@ -129,9 +136,14 @@ let powerOnAnimation = new Animation(powerOnFrames, 5);
 // buttons ////////////////////////////////////////////////////////////////
 
 const button = {
-    skill: new Button(35*16, 14*16, 6*16, 2*16, "blue", "skill"),
-    shop: new Button(35*16, 16.5*16, 6*16, 2*16, "green", "shop"),
+    skill: new Button(38.25*16, 16.5*16, 2.75*16, 2*16, "blue", "skill"),
+    shop: new Button(35*16, 16.5*16, 2.75*16, 2*16, "green", "shop"),
     endTurn: new Button(35*16, 19*16, 6*16, 2*16, "pink", "end turn"),
+
+    music: new Button(35*16, 14.5*16, 16*1.5, 16*1.5, "red", "🎵"),
+    sound: new Button(36.5*16, 14.5*16, 16*1.5, 16*1.5, "red", "🔊"),
+    inventory: new Button(38*16, 14.5*16, 16*1.5, 16*1.5, "red", "🎁"),
+    help: new Button(39.5*16, 14.5*16, 16*1.5, 16*1.5, "red", "❔"),
 
     assignVillager: new Button(1*16, 17.75*16, 6*16, 1.5*16, "orange", "assign"),
     healVillager: new Button(1*16, 19.5*16, 6*16, 1.5*16, "blue", "heal"),
@@ -156,6 +168,7 @@ socket.on("change_turn", (_currentTurn) => {
 
     button.endTurn.enabled = isCurrentTurn();
     refreshAssignButton();
+    refreshUpgradeFacilityButton();
 
     button.harvestCrop.enabled = isCurrentTurn();
     button.pickTree.enabled = isCurrentTurn();
@@ -345,6 +358,8 @@ socket.on("paths", (_paths) => {
 socket.on("facility", (_facility) => {
     facilities[_facility.label] = _facility;
 
+    upgrades = facilities["water"].level + facilities["farming"].level + facilities["education"].level + facilities["housing"].level - 4;
+
     if(selectedInfoType("facility"))
     {
         infoSelected = facilities[infoSelected.label];
@@ -445,6 +460,13 @@ socket.on("reputation", (_reputation) => {
 
 function onClick(e)
 {
+    if(buttonClick(button.music))
+    {
+        musicOn = !musicOn;
+        musicOn ? audio.bgm.play() : audio.bgm.pause();
+        return;
+    }
+
     if(getActiveWindow() == "notification") return;
 
     if(buttonClick(button.endTurn))
@@ -470,6 +492,15 @@ function onClick(e)
         useSkill();
         return;
     }
+
+    if(buttonClick(button.inventory))
+    {
+        if(getActiveWindow() == "inventory")
+            closeInventory();
+        else
+            openInventory();
+    }
+
 
     if(selectedInfoType("farmland") && buttonClick(button.harvestCrop))
     {
@@ -565,6 +596,7 @@ function onClick(e)
                         farmland.fertilized = true;
                         actionState = ACTION_STATES.NORMAL;
                         useAction(ACTION_COST.SKILL);
+                        skillUsed = true;
                         socket.emit("farm", roomId, farm);
                         return;
                     }
@@ -616,20 +648,31 @@ function onClick(e)
             {
                 if(actionState == ACTION_STATES.SELECT_VILLAGER)
                 {
-                    actionState = ACTION_STATES.NORMAL;
-                    useAction(ACTION_COST.SKILL);
-
                     if(role == "sociologist")
                     {
-                        villager.leastEffectiveTask = "";
-                        villager.leastFavoriteTask = "";
-                        socket.emit("villager", roomId, villager);
+                        if(villager.leastFavoriteTask != "")
+                        {
+                            villager.leastEffectiveTask = "";
+                            villager.leastFavoriteTask = "";
+                            socket.emit("villager", roomId, villager);
+
+                            actionState = ACTION_STATES.NORMAL;
+                            useAction(ACTION_COST.SKILL);
+                            skillUsed = true;
+                        }
                     }
 
                     else if(role == "doctor")
                     {
-                        villager.immune = true;
-                        socket.emit("villager", roomId, villager);
+                        if(!villager.immune)
+                        {
+                            villager.immune = true;
+                            socket.emit("villager", roomId, villager);
+
+                            actionState = ACTION_STATES.NORMAL;
+                            useAction(ACTION_COST.SKILL);
+                            skillUsed = true;
+                        }
                     }
                     
                 }
@@ -650,6 +693,16 @@ function onClick(e)
             {
                 infoSelected = tree;
 
+                if(actionState == ACTION_STATES.SELECT_FARMLAND && treesUnlocked && !tree.cut)
+                {
+                    tree.fertilized = true;
+                    actionState = ACTION_STATES.NORMAL;
+                    useAction(ACTION_COST.SKILL);
+                    skillUsed = true;
+                    socket.emit("trees", roomId, trees);
+                    return;
+                }
+
                 refreshPickTreeButton();
                 refreshCutTreeButton();
             }
@@ -658,6 +711,12 @@ function onClick(e)
         if(infoSelected) return;
 
         // past this point: nothing was clicked
+
+        if(actionState != ACTION_STATES.NORMAL)
+        {
+            actionState = ACTION_STATES.NORMAL;
+            refreshSkillButton();
+        }
 
         if(useItem)
         {
@@ -780,7 +839,7 @@ function onKeyDown(e)
 
     switch(e.key.toLowerCase())
     {
-        case 'e':
+        case 'e':               // inventory
         {
             if(getActiveWindow() == "inventory")
                 closeInventory();
@@ -789,13 +848,38 @@ function onKeyDown(e)
 
             break;
         }
-        case 'h':
+        case "escape":          // close menus
+        {
+            closeInventory();
+            closeShop();
+            break;
+        }
+        case "shift":
+        {
+            displayHappiness = true;
+            break;
+        }
+        case 'h':               // hack (debug only)
         {
             // hack
             // infoSelected.sick = true;
             // socket.emit("villager", roomId, infoSelected);
             // break;
         }
+        default:
+            break;
+    }
+}
+
+function onKeyUp(e)
+{
+    if(getActiveWindow() == "notification") return;
+
+    switch(e.key.toLowerCase())
+    {
+        case "shift":
+            displayHappiness = false;
+            break;
         default:
             break;
     }
@@ -838,6 +922,8 @@ export function init()
     canvas.width = img.background.width * SCALE;
     canvas.height = img.background.height * SCALE;
 
+    audio.bgm.play();
+
     ctx.imageSmoothingEnabled = false;
     ctx.textAlign = "left";
     ctx.textBaseline = "top";
@@ -846,9 +932,16 @@ export function init()
     canvas.addEventListener("mousedown", onMouseDown);
     canvas.addEventListener("mouseup", onMouseUp);
     window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+
+    button.sound.enabled = false;
+    button.help.enabled = false;
 
     if(role == "scientist")
         ACTION_COST.SKILL = 4;
+
+    else if(role == "farmer")
+        ACTION_COST.SKILL = 8;
 }
 
 export function exit()
@@ -857,6 +950,7 @@ export function exit()
     canvas.removeEventListener("mousedown", onMouseDown);
     canvas.removeEventListener("mouseup", onMouseUp);
     window.removeEventListener("keydown", onKeyDown);
+    window.removeEventListener("keyup", onKeyDown);
 }
 
 function isCurrentTurn()    // bool
@@ -975,8 +1069,6 @@ function useAction(amount)
 
 function useSkill()
 {
-    skillUsed = true;
-
     switch(role)
     {
         case "chief":
@@ -984,6 +1076,7 @@ function useSkill()
             reputation++;
             socket.emit("reputation", roomId, reputation);
             useAction(ACTION_COST.SKILL);
+            skillUsed = true;
         }
         break;
         case "doctor":
@@ -995,6 +1088,7 @@ function useSkill()
         case "scientist":
         {
             useAction(ACTION_COST.SKILL);
+            skillUsed = true;
         }
         break;
         case "sociologist":
@@ -1013,6 +1107,7 @@ function useSkill()
         {
             socket.emit("engineer_skill", inventory);
             useAction(ACTION_COST.SKILL);
+            skillUsed = true;
         }
         break;
         default:
@@ -1149,7 +1244,7 @@ function finishAssign(facility)
     socket.emit("assign_villager", roomId, assigningVillager, oldFacility, facility);
 
     assigningVillager = null;
-    button.assignVillager.enabled = true;
+    refreshAssignButton();
 }
 
 function isHoldingFood()        // bool
@@ -1465,6 +1560,9 @@ function getTextColor(text, def)
             if(selectedInfoType("villager"))
                 return infoSelected.immune ? "aqua" : def;
 
+        case "(none)":
+            return "gray";
+
         default:
             return def;
     }
@@ -1611,6 +1709,25 @@ function drawVillagers()
             ctx.restore();
         }
 
+        // draw happiness popup
+        if(displayHappiness && role == "sociologist")
+        {
+            ctx.save();
+
+            ctx.drawImage(img.heart,
+                (villager.position.x * 16 + 128) * SCALE,
+                (villager.position.y * 16) * SCALE,
+                16*SCALE, 16*SCALE);
+
+            ctx.fillStyle = "black";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.font = "16px Kenney Mini Square";
+            ctx.fillText(villager.happiness, (villager.position.x * 16 + 128 + 8) * SCALE, (villager.position.y * 16 + 6) * SCALE);
+
+            ctx.restore();
+        }
+
         // ctx.lineWidth = 4;
         // ctx.strokeStyle = "black";
         // ctx.strokeRect(
@@ -1719,6 +1836,8 @@ function drawTrees()
                 image = img.treeStump;
             else if(obj.daysLeft > 0)
                 image = img.treeBare;
+            else if(obj.fertilized)
+                image = img.treeFertilized;
 
             ctx.drawImage(image, obj.interactBox.x * SCALE, (obj.interactBox.y - 8) * SCALE, 16 * SCALE, 32 * SCALE);
         }
@@ -1734,6 +1853,8 @@ function drawTrees()
 function drawEventEffects()
 {
     if(!event) return;
+
+    if(event.blocked) return;
 
     if(event.id == "cloudy_day")
     {
@@ -1778,7 +1899,7 @@ function drawTitleBar()
     ctx.fillText(currentTurnText, x, y);
 
     ctx.textAlign = "right";
-    let reputationText = "reputation:   " + reputation;
+    let reputationText = "👑   " + reputation  + "        " + "🏠   " + upgrades;
     x = 16*33.5*SCALE;
     y = 16*0.5*SCALE;
     ctx.strokeStyle = "white";
@@ -1834,8 +1955,8 @@ function drawInfoPanel()
                 villager.hunger + " / 5",
                 villager.mostEffectiveTask,
                 villager.mostFavoriteTask,
-                villager.leastEffectiveTask,
-                villager.leastFavoriteTask,
+                (villager.leastEffectiveTask == "") ? "(none)" : villager.leastEffectiveTask,
+                (villager.leastFavoriteTask == "") ? "(none)" : villager.leastFavoriteTask,
                 villager.favoriteFood
             ];  
 
@@ -2017,12 +2138,20 @@ function drawInfoPanel()
                 }
                 else if(tree.daysLeft > 0)
                     image = img.treeBare;
+                else if(tree.fertilized)
+                    image = img.treeFertilized;
 
                 ctx.drawImage(image, 16*3 * SCALE, 16*5 * SCALE, 16*2 * SCALE, 32*2 * SCALE);
                 ctx.fillText(tree.label, 16*4*SCALE, 16*10*SCALE);
 
                 ctx.font = '16px Kenney Mini Square';
                 ctx.fillText(text, 16*4*SCALE, 16*12*SCALE);
+
+                if(tree.fertilized)
+                {
+                    ctx.fillStyle = "maroon";
+                    ctx.fillText("fertilized", 16*4*SCALE, 16*14*SCALE);
+                }
 
                 if(!tree.cut)
                 {
@@ -2049,6 +2178,12 @@ function drawInfoPanel()
 
 function drawActionPanel()
 {
+    //ctx.drawImage(img.musicOn, 16*41*SCALE, 16*1*SCALE, 16*SCALE, 16*SCALE);
+    drawButton(button.music);
+    drawButton(button.sound);
+    drawButton(button.inventory);
+    drawButton(button.help);
+
     ctx.font = "24px Kenney Mini Square";
     ctx.fillStyle = "black";
     ctx.textAlign = "right";
@@ -2065,7 +2200,11 @@ function drawActionPanel()
     ctx.fillText("current event: ", 16*35*SCALE, 16*6*SCALE);
     if(event)
     {
-        ctx.drawImage(img["event_" + event.id], 16*35*SCALE, 16*7*SCALE, 16*6*SCALE, 16*2.5*SCALE);
+        if(event.blocked)
+            drawGrayscale(img["event_" + event.id], 16*35*SCALE, 16*7*SCALE, 16*6*SCALE, 16*2.5*SCALE);
+        else
+            ctx.drawImage(img["event_" + event.id], 16*35*SCALE, 16*7*SCALE, 16*6*SCALE, 16*2.5*SCALE);
+
         ctx.strokeRect(16*35*SCALE, 16*7*SCALE, 16*6*SCALE, 16*2.5*SCALE);
     }
     // ctx.fillText(event ? event.name : "", 16*35*SCALE, 16*7*SCALE);
@@ -2076,7 +2215,7 @@ function drawActionPanel()
     }
 
     ctx.font = "20px Kenney Mini Square";
-    ctx.fillText("action points:   " + actionPoints, 16*35*SCALE, 16*12*SCALE);
+    ctx.fillText("action points:   " + actionPoints + "✦", 16*35*SCALE, 16*12*SCALE);
 
 
     drawButton(button.skill);
