@@ -463,7 +463,6 @@ class Game {
 
     updateVillagers()
     {
-        return;
         this.villagers.forEach(villager => {
             
             // update happiness based on hunger, except for day 1

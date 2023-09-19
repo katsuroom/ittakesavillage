@@ -942,6 +942,9 @@ export function init()
 
     else if(role == "farmer")
         ACTION_COST.SKILL = 8;
+
+    else if(role == "sociologist")
+        ACTION_COST.SKILL = 3;
 }
 
 export function exit()

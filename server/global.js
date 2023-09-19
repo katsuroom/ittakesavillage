@@ -153,8 +153,8 @@ const EVENTS_AUTUMN = new RandomTable([
 
 const EVENTS_WINTER = new RandomTable([
     new Option(EVENTS["cloudy_day"], 1),
-    new Option(EVENTS["free_cake"], 10),
-    new Option(EVENTS["black_friday"], 10),
+    new Option(EVENTS["free_cake"], 5),
+    new Option(EVENTS["flood"], 10),
     new Option(EVENTS["drought"], 20),
     new Option(EVENTS["disease"], 30),
     new Option(EVENTS["death"], 15),
