@@ -202,6 +202,10 @@ function startGame(roomId)
             if(role != "chief" && !present)
                 shop.push(global.SHOP["npc_" + role]);
         }
+
+        // remove one random npc from shop
+        shop.splice(Math.floor(Math.random() * shop.length), 1);
+
         if(player.role == "farmer")
         {
             shop.push(global.SHOP["cucumber_seed"]);

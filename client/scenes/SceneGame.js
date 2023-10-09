@@ -14,9 +14,12 @@ import { NotificationEvent } from "../src/NotificationEvent.js";
 import { NotificationArrival } from "../src/NotificationArrival.js";
 import { NotificationFlee } from "../src/NotificationFlee.js";
 import { NotificationQuest } from "../src/NotificationQuest.js";
+import { DayNotification } from "../src/DayNotification.js";
 
 
 // game variables ////////////////////////////////////////////////////////////////
+
+const TIME_PER_TURN = 45;       // seconds per turn
 
 const INVENTORY_SIZE = 32;
 const UPGRADE_MATERIAL_COST = 10;
@@ -29,7 +32,6 @@ const ACTION_POINTS = 8;
 
 let ACTION_COST = {
     UPGRADE_FACILITY: 4,
-    COLLECT_BRICKS: 2,
     PLANT_CROP: 1,
     HARVEST_CROP: 1,
     PICK_TREE: 1,
@@ -42,12 +44,14 @@ let ACTION_COST = {
 
 let currentTurn = 0;
 let actionPoints = 0;
-let skillUsed = false;          // whether or not skill has been used this turn
+let skillUsed = false;                  // whether or not skill has been used this turn
+let timeLeftForTurn = TIME_PER_TURN;    // remaining time for this turn;
 
 let day = 0;
 let season = "";
 let nextSeason = "";
 let daysUntilNextSeason = 0;
+let timerOn = false;
 
 let event = null;
 let nextEvent = null;
@@ -161,6 +165,7 @@ const button = {
 // socket messages ////////////////////////////////////////////////////////////////
 
 socket.on("change_turn", (_currentTurn) => {
+    timeLeftForTurn = TIME_PER_TURN * 60;           // * 60 due to 60 FPS
     currentTurn = _currentTurn;
     actionPoints = ACTION_POINTS;
     skillUsed = false;
@@ -243,6 +248,8 @@ socket.on("daily_loot", (_loot, amount) => {
 socket.on("day", (_day, _daysUntilNextSeason) => {
     day = _day;
     daysUntilNextSeason = _daysUntilNextSeason;
+
+    DayNotification.reset(day);
 });
 
 socket.on("season", (_season, _nextSeason) => {
@@ -326,8 +333,8 @@ socket.on("villager", (_villager) => {
 
 socket.on("villagers", (_villagers) => {
 
-    if(day > 1 && villagers.length < 4)
-        gameOver("GAME OVER: There are fewer than 4 villagers remaining.");
+    if(day > 1 && villagers.length < 7)
+        gameOver("GAME OVER: There are fewer than 7 villagers remaining.");
 
     // check for new villager arrival
     if(villagers.length > 0 && _villagers.length > villagers.length)
@@ -471,8 +478,7 @@ function onClick(e)
 
     if(buttonClick(button.endTurn))
     {
-        closeInventory();
-        socket.emit("end_turn", roomId);
+        endTurn();
         return;
     }
 
@@ -992,6 +998,12 @@ function selectedInfoType(infoType)     // bool
     return infoSelected && infoSelected.infoType == infoType;
 }
 
+function endTurn()
+{
+    closeInventory();
+    socket.emit("end_turn", roomId);
+}
+
 function openInventory()
 {
     if(getActiveWindow() != "inventory")
@@ -1203,6 +1215,7 @@ function finishAssign(facility)
 {
     if(facility == facilities["power"] && facilities["power"].assignedVillagers.length > 0)
     {
+        assigningVillager = null;
         button.assignVillager.enabled = true;
         return;
     }
@@ -1261,8 +1274,8 @@ function feedVillager(villager)
 
     if(heldItemStack.item.id == villager.favoriteFood)
         villager.hunger = 5;
-    else
-        villager.hunger = Math.min(villager.hunger + 2, 4);
+    // else
+    //     villager.hunger = Math.min(villager.hunger + 2, 4);
 
     if(heldItemStack.item.id == "apple")
         villager.happiness += APPLE_HAPPINESS_BOOST;
@@ -1358,16 +1371,7 @@ function upgradeMaterial(itemStack)
 {
     spendBudget(UPGRADE_MATERIAL_COST);
 
-    let success = 0;
-    switch(facilities["education"].level)
-    {
-        case 1: success = 0.6; break;
-        case 2: success = 0.7; break;
-        case 3: success = 0.8; break;
-        case 4: success = 0.9; break;
-        case 5: success = 1.0; break;
-        default: break;
-    }
+    let success = getUpgradeSuccessChance();
 
     if(Math.random() < success)
     {
@@ -1378,6 +1382,19 @@ function upgradeMaterial(itemStack)
 
         useItem(itemStack);
         giveItem(newItem, 1);
+    }
+}
+
+function getUpgradeSuccessChance()  // float
+{
+    switch(facilities["education"].level)
+    {
+        case 1: return 0.5;
+        case 2: return 0.6;
+        case 3: return 0.7;
+        case 4: return 0.8;
+        case 5: return 1.0;
+        default: return -1;
     }
 }
 
@@ -1393,7 +1410,7 @@ function collectLoot(index)
     dailyLoot[index] = null;
     lootAmount--;
 
-    if(lootAmount == 0)
+    if(lootAmount <= 0)
     {
         windowStack.pop();
         button.endTurn.enabled = true;
@@ -1577,21 +1594,7 @@ function drawLabel()
 
     let obj = labelSelected;
 
-    ctx.font = "16px Kenney Mini Square";
-    let textRect = ctx.measureText(obj.label);
-    let textWidth = textRect.width;
-    let textHeight = textRect.fontBoundingBoxAscent + textRect.fontBoundingBoxDescent;
-    let padding = 8;
-
-    ctx.fillStyle = "black";
-    ctx.fillRect(
-        (obj.interactBox.x + obj.interactBox.width/2) * SCALE - textWidth/2 - padding,
-        (obj.interactBox.y * SCALE) - 32 - padding/2,
-        textWidth + 2 * padding,
-        textHeight + padding);
-
-    ctx.fillStyle = obj.labelColor;
-    ctx.fillText(obj.label, (obj.interactBox.x + obj.interactBox.width/2) * SCALE - textRect.width/2, (obj.interactBox.y * SCALE) - 32);
+    drawTooltip(obj.interactBox, obj.label, obj.labelColor);
 }
 
 function drawItemLabel(interactBox, item)
@@ -1637,6 +1640,89 @@ function drawItemLabel(interactBox, item)
         ctx.fillStyle = "dodgerblue";
         ctx.fillText(item.type, (interactBox.x + interactBox.width/2) * SCALE, (interactBox.y * SCALE) - 36);
     }
+}
+
+function drawTooltip(interactBox, text, color)
+{
+    ctx.font = "16px Kenney Mini Square";
+    let textRect = ctx.measureText(text);
+    let textWidth = textRect.width;
+    let textHeight = textRect.fontBoundingBoxAscent + textRect.fontBoundingBoxDescent;
+    let padding = 8;
+
+    ctx.fillStyle = "black";
+    ctx.fillRect(
+        (interactBox.x + interactBox.width/2) * SCALE - textWidth/2 - padding,
+        (interactBox.y * SCALE) - 32 - padding/2,
+        textWidth + 2 * padding,
+        textHeight + padding);
+
+    ctx.fillStyle = color;
+    ctx.fillText(text, (interactBox.x + interactBox.width/2) * SCALE - textRect.width/2, (interactBox.y * SCALE) - 32);
+}
+
+function drawTooltips()
+{
+    // upgrade facility
+    if(selectedInfoType("facility") && mouseInteract(button.upgradeFacility))
+        drawTooltip(button.upgradeFacility.interactBox, `cost: ${ACTION_COST.UPGRADE_FACILITY}✦`, "magenta");
+
+    // plant crop
+    if(heldItemStack?.item.type == "seed")
+    {
+        for(let i = 0; !farm[i].locked; i++)
+        {
+            if(!farm[i].crop && mouseInteract(farm[i]))
+            {
+                setLabel(null);
+                drawTooltip(farm[i].interactBox, `cost: ${ACTION_COST.PLANT_CROP}✦`, "magenta");
+                break;
+            }
+        }   
+    }
+
+    // harvest crop
+    if(selectedInfoType("farmland") && mouseInteract(button.harvestCrop))
+        drawTooltip(button.harvestCrop.interactBox, `cost: ${ACTION_COST.HARVEST_CROP}✦`, "magenta");
+
+    // pick tree
+    if(selectedInfoType("tree") && mouseInteract(button.pickTree))
+        drawTooltip(button.pickTree.interactBox, `cost: ${ACTION_COST.PICK_TREE}✦`, "magenta");
+
+    // cut tree
+    if(selectedInfoType("tree") && mouseInteract(button.cutTree))
+        drawTooltip(button.cutTree.interactBox, `cost: ${ACTION_COST.CUT_TREE}✦`, "magenta");
+
+    // assign villager
+    if(selectedInfoType("villager") && mouseInteract(button.assignVillager))
+        drawTooltip(button.assignVillager.interactBox, `cost: ${ACTION_COST.ASSIGN_VILLAGER}✦`, "magenta");
+
+    // heal villager
+    if(selectedInfoType("villager") && mouseInteract(button.healVillager))
+        drawTooltip(button.healVillager.interactBox, `cost: ${ACTION_COST.HEAL_VILLAGER}✦`, "magenta");
+
+    // use material
+    if(heldItemStack?.item.type == "material")
+    {
+        let f = Object.values(facilities);
+        for(let i = 0; i < f.length; i++)
+        {
+            if(mouseInteract(f[i]))
+            {
+                setLabel(null);
+                drawTooltip(f[i].interactBox, `cost: ${ACTION_COST.USE_MATERIAL}✦`, "magenta");
+                break;
+            }
+        }
+    }
+
+    // skill
+    if(mouseInteract(button.skill))
+        drawTooltip(button.skill.interactBox, `cost: ${ACTION_COST.SKILL}✦`, "magenta");
+
+    // upgrade material
+    if(getActiveWindow() == "inventory" && mouseInteract(button.upgradeMaterial))
+        drawTooltip(button.upgradeMaterial.interactBox, `success: ${getUpgradeSuccessChance() * 100}%`, "cyan");
 }
 
 function drawVillagers()
@@ -1897,9 +1983,12 @@ function drawTitleBar()
     let x = 16*8.5*SCALE;
     let y = 16*0.5*SCALE;
     ctx.strokeStyle = "white";
-    ctx.strokeText(currentTurnText, x, y);
     ctx.fillStyle = "black";
+    ctx.strokeText(currentTurnText, x, y);
     ctx.fillText(currentTurnText, x, y);
+
+    ctx.strokeText(Math.ceil(timeLeftForTurn / 60), x, y + 16*SCALE);
+    ctx.fillText(Math.ceil(timeLeftForTurn / 60), x, y + 16*SCALE);
 
     ctx.textAlign = "right";
     let reputationText = "👑   " + reputation  + "        " + "🏠   " + upgrades;
@@ -2567,9 +2656,21 @@ export function draw()
     drawInventory();
     drawShop();
 
+    drawTooltips();
     drawLabel();
     drawHeldItemStack();
     drawNotification();
+
+    
+
+    DayNotification.draw();
+
+    if(timerOn && timeLeftForTurn > 0)
+        timeLeftForTurn--;
+
+    if(isCurrentTurn() && timeLeftForTurn == 0)
+        endTurn();
+
 
     if(sm.currentScene == sm.SCENE.game)
         requestAnimationFrame(draw);

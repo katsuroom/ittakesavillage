@@ -655,7 +655,7 @@ class Game {
         {
             case "harvest":
                 {
-                    let numCrops = Math.floor(7 - this.players.length * 0.5);
+                    let numCrops = Math.floor(9 - this.players.length * 0.5);
                     let crops = [global.ITEMS.cucumber, global.ITEMS.tomato, global.ITEMS.potato, global.ITEMS.carrot];
 
                     this.players.forEach(player => {
