@@ -234,11 +234,18 @@ function disconnectLobby(game, index)   // index of player in game.players
         delete games[game.roomId];
     else
     {
+        let ready = true;
         for(let i = 0; i < game.players.length; i++)
         {
+            if(!game.players[i].ready)
+                ready = false;
+
             io.sockets.to(game.players[i].id).emit("refresh_roles", game.rolesPresent);
             io.sockets.to(game.players[i].id).emit("refresh_lobby", game.players, game.roomId);
         }
+
+        if(ready)
+            startGame(game.roomId);
     }
 }
 
@@ -310,7 +317,6 @@ function reconnect(socket, _roomId, _socketId)
             io.sockets.to(player.id).emit("refresh_lobby", game.players, _roomId);
         });
 
-    
         socket.emit("reconnect", player);
         socket.emit("day", game.day, game.daysUntilNextSeason);
         socket.emit("season", game.season, game.nextSeason);
@@ -683,21 +689,21 @@ io.on("connection", (socket) => {
         console.log("disconnected: " + socket.id);
         
         let found = false;
-        for(const [id, game] of Object.entries(games))
+        for(const game of Object.values(games))
         {
-            for(let j = 0; j < games[id].players.length; j++)
+            for(let j = 0; j < game.players.length; j++)
             {
-                if(socket.id == games[id].players[j].id)
+                if(socket.id == game.players[j].id)
                 {
-                    if(games[id].started)
+                    if(game.started)
                     {
                         // game has already started
-                        disconnectGame(games[id], j);
+                        disconnectGame(game, j);
                     }
                     else
                     {
                         // game is still in lobby
-                        disconnectLobby(games[id], j);
+                        disconnectLobby(game, j);
                     }
 
                     break;
@@ -706,8 +712,23 @@ io.on("connection", (socket) => {
 
             if(found) break;
         }
+    });
 
-        
+    socket.on("game", (_roomId) => {
+
+        let game = games[_roomId];
+
+        socket.emit("game", game);
+
+        // remove player from game
+        for(let j = 0; j < game.players.length; j++)
+        {
+            if(socket.id == game.players[j].id)
+            {
+                disconnectGame(game, j);
+                break;
+            }
+        }
     });
 
     socket.on("server_info", () => {

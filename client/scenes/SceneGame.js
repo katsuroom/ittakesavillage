@@ -17,6 +17,9 @@ import { NotificationQuest } from "../src/NotificationQuest.js";
 import { DayNotification } from "../src/DayNotification.js";
 
 
+// dev variables ////////////////////////////////////////////////////////////////
+const timerOn = true;
+
 // game variables ////////////////////////////////////////////////////////////////
 
 const TIME_PER_TURN = 45;       // seconds per turn
@@ -51,7 +54,6 @@ let day = 0;
 let season = "";
 let nextSeason = "";
 let daysUntilNextSeason = 0;
-let timerOn = false;
 
 let event = null;
 let nextEvent = null;
@@ -93,6 +95,7 @@ let priceMultiplier = 1;        // multiplier for shop items
 // ui ////////////////////////////////////////////////////////////////
 
 let musicOn = true;
+let soundOn = true;
 
 const ACTION_STATES = {
     NORMAL: 0,
@@ -139,7 +142,7 @@ let powerOnAnimation = new Animation(powerOnFrames, 5);
 
 // buttons ////////////////////////////////////////////////////////////////
 
-const button = {
+const buttons = {
     skill: new Button(38.25*16, 16.5*16, 2.75*16, 2*16, "blue", "skill"),
     shop: new Button(35*16, 16.5*16, 2.75*16, 2*16, "green", "shop"),
     endTurn: new Button(35*16, 19*16, 6*16, 2*16, "pink", "end turn"),
@@ -171,13 +174,13 @@ socket.on("change_turn", (_currentTurn) => {
     skillUsed = false;
     refreshSkillButton();
 
-    button.endTurn.enabled = isCurrentTurn();
+    buttons.endTurn.enabled = isCurrentTurn();
     refreshAssignButton();
     refreshUpgradeFacilityButton();
 
-    button.harvestCrop.enabled = isCurrentTurn();
-    button.pickTree.enabled = isCurrentTurn();
-    button.cutTree.enabled = isCurrentTurn();
+    buttons.harvestCrop.enabled = isCurrentTurn();
+    buttons.pickTree.enabled = isCurrentTurn();
+    buttons.cutTree.enabled = isCurrentTurn();
 
     refreshInventoryButtons();
 
@@ -234,7 +237,7 @@ socket.on("purchase_npc", (_npcs) => {
 
 socket.on("daily_loot", (_loot, amount) => {
 
-    button.endTurn.enabled = false;
+    buttons.endTurn.enabled = false;
 
     if(getActiveWindow() == "notification")
         windowStack.splice(windowStack.length - 1, 0, "daily_loot");
@@ -332,10 +335,6 @@ socket.on("villager", (_villager) => {
 });
 
 socket.on("villagers", (_villagers) => {
-
-    if(day > 1 && villagers.length < 7)
-        gameOver("GAME OVER: There are fewer than 7 villagers remaining.");
-
     // check for new villager arrival
     if(villagers.length > 0 && _villagers.length > villagers.length)
     {
@@ -366,6 +365,13 @@ socket.on("facility", (_facility) => {
     facilities[_facility.label] = _facility;
 
     upgrades = facilities["water"].level + facilities["farming"].level + facilities["education"].level + facilities["housing"].level - 4;
+
+    // win condition
+    if(upgrades >= 12)
+    {
+        sm.loadScene(sm.SCENE.win);
+        return;
+    }
 
     if(selectedInfoType("facility"))
     {
@@ -467,22 +473,30 @@ socket.on("reputation", (_reputation) => {
 
 function onClick(e)
 {
-    if(buttonClick(button.music))
+    // sm.loadScene(sm.SCENE.win);         // gay
+
+    if(buttonClick(buttons.music))
     {
         musicOn = !musicOn;
         musicOn ? audio.bgm.play() : audio.bgm.pause();
         return;
     }
 
+    if(buttonClick(button.sound))
+    {
+        soundOn = !soundOn;
+        return;
+    }
+
     if(getActiveWindow() == "notification") return;
 
-    if(buttonClick(button.endTurn))
+    if(buttonClick(buttons.endTurn))
     {
         endTurn();
         return;
     }
 
-    if(buttonClick(button.shop))
+    if(buttonClick(buttons.shop))
     {
         if(getActiveWindow() == "shop")
             closeShop();
@@ -492,14 +506,14 @@ function onClick(e)
         return;
     }
 
-    if(buttonClick(button.skill))
+    if(buttonClick(buttons.skill))
     {
         closeInventory();
         useSkill();
         return;
     }
 
-    if(buttonClick(button.inventory))
+    if(buttonClick(buttons.inventory))
     {
         if(getActiveWindow() == "inventory")
             closeInventory();
@@ -508,13 +522,13 @@ function onClick(e)
     }
 
 
-    if(selectedInfoType("farmland") && buttonClick(button.harvestCrop))
+    if(selectedInfoType("farmland") && buttonClick(buttons.harvestCrop))
     {
         harvestCrop();
         return;
     }
 
-    if(selectedInfoType("facility") && buttonClick(button.upgradeFacility))
+    if(selectedInfoType("facility") && buttonClick(buttons.upgradeFacility))
     {
         useAction(ACTION_COST.UPGRADE_FACILITY);
         socket.emit("upgrade_facility", roomId, infoSelected);
@@ -523,12 +537,12 @@ function onClick(e)
 
     if(selectedInfoType("villager"))
     {
-        if(buttonClick(button.assignVillager))
+        if(buttonClick(buttons.assignVillager))
         {
             startAssign();
             return;
         }
-        else if(buttonClick(button.healVillager))
+        else if(buttonClick(buttons.healVillager))
         {
             healVillager();
             return;
@@ -538,13 +552,13 @@ function onClick(e)
 
     if(selectedInfoType("tree"))
     {
-        if(buttonClick(button.pickTree))
+        if(buttonClick(buttons.pickTree))
         {
             pickTree();
             return;
         }
         
-        else if(buttonClick(button.cutTree))
+        else if(buttonClick(buttons.cutTree))
         {
             cutTree();
             return;
@@ -686,7 +700,7 @@ function onClick(e)
                 if(assigningVillager)
                 {
                     assigningVillager = null;
-                    button.assignVillager.enabled = true;
+                    buttons.assignVillager.enabled = true;
                 }
                 infoSelected = villager;
 
@@ -749,14 +763,14 @@ function onClick(e)
     {
         if(!isCurrentTurn() || lootAmount > 0) return;
 
-        if(buttonClick(button.sellItem))
+        if(buttonClick(buttons.sellItem))
         {
             inventoryState = INVENTORY_STATES.SELLING;
             refreshInventoryButtons();
             return;
         }
 
-        if(buttonClick(button.upgradeMaterial))
+        if(buttonClick(buttons.upgradeMaterial))
         {
             inventoryState = INVENTORY_STATES.UPGRADING;
             refreshInventoryButtons();
@@ -928,6 +942,7 @@ export function init()
     canvas.width = img.background.width * SCALE;
     canvas.height = img.background.height * SCALE;
 
+    audio.bgm.currentTime = 0;
     audio.bgm.play();
 
     ctx.imageSmoothingEnabled = false;
@@ -940,8 +955,62 @@ export function init()
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("keyup", onKeyUp);
 
-    button.sound.enabled = false;
-    button.help.enabled = false;
+    buttons.help.enabled = false;
+
+    currentTurn = 0;
+    actionPoints = 0;
+    skillUsed = false;
+    timeLeftForTurn = TIME_PER_TURN;
+
+    day = 0;
+    season = "";
+    nextSeason = "";
+    daysUntilNextSeason = 0;
+
+    event = null;
+    nextEvent = null;
+
+    budget = 0;
+
+    villagers = [];
+    paths = [];
+    movingVillager = null;
+
+    facilities = {};
+    farm = [];
+
+    treesUnlocked = false;
+    trees = [];
+
+    shop = [];
+
+    dailyLoot = [];
+    lootAmount = 0;
+
+    upgrades = 0;
+
+    healChances = 0;
+    reputation = 0;
+    displayHappiness = false;
+
+    cropGrowthModifier = 0;
+    priceMultiplier = 1;
+
+    actionState = ACTION_STATES.NORMAL;
+    inventoryState = INVENTORY_STATES.NORMAL;
+
+    heldItemStack = null;
+    assigningVillager = null;
+
+    infoSelected = null;
+    labelSelected = null;
+
+    windowStack = ["main"];
+
+    notifications = [];
+    currentNotif = null;
+
+    cloudShadows = [];
 
     if(role == "scientist")
         ACTION_COST.SKILL = 4;
@@ -960,6 +1029,8 @@ export function exit()
     canvas.removeEventListener("mouseup", onMouseUp);
     window.removeEventListener("keydown", onKeyDown);
     window.removeEventListener("keyup", onKeyDown);
+
+    audio.bgm.pause();
 }
 
 function isCurrentTurn()    // bool
@@ -975,6 +1046,8 @@ function triggerNotifications()
     {
         windowStack.push("notification");
         currentNotif = notifications[0];
+        if(soundOn)
+            audio.notification.play();
         setTimeout(() => {
             currentNotif = null;
             notifications.shift();
@@ -985,6 +1058,11 @@ function triggerNotifications()
 
             triggerNotifications();
         }, currentNotif.duration);
+    }
+    else
+    {
+        if(day > 1 && villagers.length < 7)
+            gameOver("GAME OVER: There are fewer than 7 villagers remaining.");
     }
 }
 
@@ -1013,8 +1091,8 @@ function openInventory()
         heldItemStack = null;
         assigningVillager = null;
 
-        button.assignVillager.enabled = false;
-        button.healVillager.enabled = false;
+        buttons.assignVillager.enabled = false;
+        buttons.healVillager.enabled = false;
 
         refreshInventoryButtons();
     }
@@ -1043,8 +1121,8 @@ function openShop()
         heldItemStack = null;
         assigningVillager = null;
 
-        button.assignVillager.enabled = false;
-        button.healVillager.enabled = false;
+        buttons.assignVillager.enabled = false;
+        buttons.healVillager.enabled = false;
     }
 }
 
@@ -1079,7 +1157,7 @@ function useAction(amount)
     refreshUpgradeFacilityButton();
     refreshSkillButton();
 
-    button.harvestCrop.enabled = actionPoints >= ACTION_COST.HARVEST_CROP;
+    buttons.harvestCrop.enabled = actionPoints >= ACTION_COST.HARVEST_CROP;
 }
 
 function useSkill()
@@ -1097,7 +1175,7 @@ function useSkill()
         case "doctor":
         {
             actionState = ACTION_STATES.SELECT_VILLAGER;
-            button.skill.enabled = false;
+            buttons.skill.enabled = false;
         }
         break;
         case "scientist":
@@ -1109,13 +1187,13 @@ function useSkill()
         case "sociologist":
         {
             actionState = ACTION_STATES.SELECT_VILLAGER;
-            button.skill.enabled = false;
+            buttons.skill.enabled = false;
         }
         break;
         case "farmer":
         {
             actionState = ACTION_STATES.SELECT_FARMLAND;
-            button.skill.enabled = false;
+            buttons.skill.enabled = false;
         }
         break;
         case "engineer":
@@ -1208,7 +1286,7 @@ function startAssign()
     heldItemStack = null;
 
     assigningVillager = infoSelected;
-    button.assignVillager.enabled = false;
+    buttons.assignVillager.enabled = false;
 }
 
 function finishAssign(facility)
@@ -1216,7 +1294,7 @@ function finishAssign(facility)
     if(facility == facilities["power"] && facilities["power"].assignedVillagers.length > 0)
     {
         assigningVillager = null;
-        button.assignVillager.enabled = true;
+        buttons.assignVillager.enabled = true;
         return;
     }
 
@@ -1224,7 +1302,7 @@ function finishAssign(facility)
     if(facility && assigningVillager.currentTask == facility.label)
     {
         assigningVillager = null;
-        button.assignVillager.enabled = true;
+        buttons.assignVillager.enabled = true;
         return;
     }
 
@@ -1413,7 +1491,7 @@ function collectLoot(index)
     if(lootAmount <= 0)
     {
         windowStack.pop();
-        button.endTurn.enabled = true;
+        buttons.endTurn.enabled = true;
     }
 }
 
@@ -1458,8 +1536,8 @@ function refreshInventoryButtons()
 {
     let enable = isCurrentTurn() && getActiveWindow() == "inventory" && inventoryState == INVENTORY_STATES.NORMAL;
 
-    button.sellItem.enabled = enable;
-    button.upgradeMaterial.enabled = enable && role == "engineer" && budget >= UPGRADE_MATERIAL_COST;
+    buttons.sellItem.enabled = enable;
+    buttons.upgradeMaterial.enabled = enable && role == "engineer" && budget >= UPGRADE_MATERIAL_COST;
 }
 
 function refreshShop()
@@ -1475,32 +1553,32 @@ function refreshShop()
 
 function refreshAssignButton()
 {
-    button.assignVillager.enabled = role == "chief" && isCurrentTurn() && actionPoints >= ACTION_COST.ASSIGN_VILLAGER;
+    buttons.assignVillager.enabled = role == "chief" && isCurrentTurn() && actionPoints >= ACTION_COST.ASSIGN_VILLAGER;
 }
 
 function refreshHealButton()
 {
-    button.healVillager.enabled = false;
+    buttons.healVillager.enabled = false;
 
     let cost = Math.floor(HEAL_VILLAGER_COST * priceMultiplier);
 
     if((rolesPresent["doctor"] || npcPresent["doctor"]) && healChances > 0)
-        button.healVillager.text = `heal (${healChances})`;
+        buttons.healVillager.text = `heal (${healChances})`;
     else
-        button.healVillager.text = `heal ($${cost})`;
+        buttons.healVillager.text = `heal ($${cost})`;
 
     if(!isCurrentTurn() || !selectedInfoType("villager") || actionPoints < ACTION_COST.HEAL_VILLAGER)
         return;
 
     if(infoSelected.sick)
     {
-        button.healVillager.enabled = healChances > 0 || budget >= cost;
+        buttons.healVillager.enabled = healChances > 0 || budget >= cost;
     }
 }
 
 function refreshUpgradeFacilityButton()
 {
-    button.upgradeFacility.enabled = false;
+    buttons.upgradeFacility.enabled = false;
     
     if(isCurrentTurn() && selectedInfoType("facility") && infoSelected.progress == infoSelected.progressMax && actionPoints >= ACTION_COST.UPGRADE_FACILITY)
     {
@@ -1523,7 +1601,7 @@ function refreshUpgradeFacilityButton()
             }
         }
 
-        button.upgradeFacility.enabled = enable;
+        buttons.upgradeFacility.enabled = enable;
     }
 }
 
@@ -1531,27 +1609,27 @@ function refreshPickTreeButton()
 {
     if(!isCurrentTurn() || !selectedInfoType("tree") || actionPoints < ACTION_COST.PICK_TREE)
     {
-        button.pickTree.enabled = false;
+        buttons.pickTree.enabled = false;
         return;
     }
 
-    button.pickTree.enabled = infoSelected.daysLeft == 0 && !infoSelected.cut;
+    buttons.pickTree.enabled = infoSelected.daysLeft == 0 && !infoSelected.cut;
 }
 
 function refreshCutTreeButton()
 {
     if(!isCurrentTurn() || !selectedInfoType("tree") || actionPoints < ACTION_COST.CUT_TREE)
     {
-        button.cutTree.enabled = false;
+        buttons.cutTree.enabled = false;
         return;
     }
 
-    button.cutTree.enabled = !infoSelected.cut;
+    buttons.cutTree.enabled = !infoSelected.cut;
 }
 
 function refreshSkillButton()
 {
-    button.skill.enabled = isCurrentTurn() && actionState == ACTION_STATES.NORMAL && actionPoints >= ACTION_COST.SKILL;
+    buttons.skill.enabled = isCurrentTurn() && actionState == ACTION_STATES.NORMAL && actionPoints >= ACTION_COST.SKILL;
 }
 
 
@@ -1664,8 +1742,8 @@ function drawTooltip(interactBox, text, color)
 function drawTooltips()
 {
     // upgrade facility
-    if(selectedInfoType("facility") && mouseInteract(button.upgradeFacility))
-        drawTooltip(button.upgradeFacility.interactBox, `cost: ${ACTION_COST.UPGRADE_FACILITY}✦`, "magenta");
+    if(selectedInfoType("facility") && mouseInteract(buttons.upgradeFacility))
+        drawTooltip(buttons.upgradeFacility.interactBox, `cost: ${ACTION_COST.UPGRADE_FACILITY}✦`, "magenta");
 
     // plant crop
     if(heldItemStack?.item.type == "seed")
@@ -1682,24 +1760,24 @@ function drawTooltips()
     }
 
     // harvest crop
-    if(selectedInfoType("farmland") && mouseInteract(button.harvestCrop))
-        drawTooltip(button.harvestCrop.interactBox, `cost: ${ACTION_COST.HARVEST_CROP}✦`, "magenta");
+    if(selectedInfoType("farmland") && mouseInteract(buttons.harvestCrop))
+        drawTooltip(buttons.harvestCrop.interactBox, `cost: ${ACTION_COST.HARVEST_CROP}✦`, "magenta");
 
     // pick tree
-    if(selectedInfoType("tree") && mouseInteract(button.pickTree))
-        drawTooltip(button.pickTree.interactBox, `cost: ${ACTION_COST.PICK_TREE}✦`, "magenta");
+    if(selectedInfoType("tree") && mouseInteract(buttons.pickTree))
+        drawTooltip(buttons.pickTree.interactBox, `cost: ${ACTION_COST.PICK_TREE}✦`, "magenta");
 
     // cut tree
-    if(selectedInfoType("tree") && mouseInteract(button.cutTree))
-        drawTooltip(button.cutTree.interactBox, `cost: ${ACTION_COST.CUT_TREE}✦`, "magenta");
+    if(selectedInfoType("tree") && mouseInteract(buttons.cutTree))
+        drawTooltip(buttons.cutTree.interactBox, `cost: ${ACTION_COST.CUT_TREE}✦`, "magenta");
 
     // assign villager
-    if(selectedInfoType("villager") && mouseInteract(button.assignVillager))
-        drawTooltip(button.assignVillager.interactBox, `cost: ${ACTION_COST.ASSIGN_VILLAGER}✦`, "magenta");
+    if(selectedInfoType("villager") && mouseInteract(buttons.assignVillager))
+        drawTooltip(buttons.assignVillager.interactBox, `cost: ${ACTION_COST.ASSIGN_VILLAGER}✦`, "magenta");
 
     // heal villager
-    if(selectedInfoType("villager") && mouseInteract(button.healVillager))
-        drawTooltip(button.healVillager.interactBox, `cost: ${ACTION_COST.HEAL_VILLAGER}✦`, "magenta");
+    if(selectedInfoType("villager") && mouseInteract(buttons.healVillager))
+        drawTooltip(buttons.healVillager.interactBox, `cost: ${ACTION_COST.HEAL_VILLAGER}✦`, "magenta");
 
     // use material
     if(heldItemStack?.item.type == "material")
@@ -1717,12 +1795,12 @@ function drawTooltips()
     }
 
     // skill
-    if(mouseInteract(button.skill))
-        drawTooltip(button.skill.interactBox, `cost: ${ACTION_COST.SKILL}✦`, "magenta");
+    if(mouseInteract(buttons.skill))
+        drawTooltip(buttons.skill.interactBox, `cost: ${ACTION_COST.SKILL}✦`, "magenta");
 
     // upgrade material
-    if(getActiveWindow() == "inventory" && mouseInteract(button.upgradeMaterial))
-        drawTooltip(button.upgradeMaterial.interactBox, `success: ${getUpgradeSuccessChance() * 100}%`, "cyan");
+    if(getActiveWindow() == "inventory" && mouseInteract(buttons.upgradeMaterial))
+        drawTooltip(buttons.upgradeMaterial.interactBox, `success: ${getUpgradeSuccessChance() * 100}%`, "cyan");
 }
 
 function drawVillagers()
@@ -1991,7 +2069,8 @@ function drawTitleBar()
     ctx.fillText(Math.ceil(timeLeftForTurn / 60), x, y + 16*SCALE);
 
     ctx.textAlign = "right";
-    let reputationText = "👑   " + reputation  + "        " + "🏠   " + upgrades;
+    let fleeText = "💨".repeat(Math.max(Math.min(10 - villagers.length, 3), 0));
+    let reputationText = fleeText + "        " + "👑   " + reputation + "        " + "🏠   " + upgrades;
     x = 16*33.5*SCALE;
     y = 16*0.5*SCALE;
     ctx.strokeStyle = "white";
@@ -2078,8 +2157,8 @@ function drawInfoPanel()
                 ctx.fillText(villager.quest.description, 16 * SCALE, 16*16.5*SCALE);
             }
             
-            drawButton(button.assignVillager);
-            drawButton(button.healVillager);
+            drawButton(buttons.assignVillager);
+            drawButton(buttons.healVillager);
 
             break;
         }
@@ -2155,7 +2234,7 @@ function drawInfoPanel()
                 ctx.fillText("(none)", 16*4*SCALE, 16*14*SCALE);
 
             if(!(facility.label == "power" && facility.level > 1))
-                drawButton(button.upgradeFacility);
+                drawButton(buttons.upgradeFacility);
             
             ctx.textAlign = "left";
             break;
@@ -2187,7 +2266,7 @@ function drawInfoPanel()
                 if(farmland.daysLeft == 0)
                 {
                     ctx.fillText(farmland.label + " to harvest", 16*4*SCALE, 16*12*SCALE);
-                    drawButton(button.harvestCrop);
+                    drawButton(buttons.harvestCrop);
                 }
                 else
                     ctx.fillText(farmland.label + " until mature", 16*4*SCALE, 16*12*SCALE);
@@ -2248,8 +2327,8 @@ function drawInfoPanel()
                 if(!tree.cut)
                 {
                     if(tree.daysLeft == 0)
-                        drawButton(button.pickTree);
-                    drawButton(button.cutTree);
+                        drawButton(buttons.pickTree);
+                    drawButton(buttons.cutTree);
                 }
             }
             else
@@ -2271,10 +2350,10 @@ function drawInfoPanel()
 function drawActionPanel()
 {
     //ctx.drawImage(img.musicOn, 16*41*SCALE, 16*1*SCALE, 16*SCALE, 16*SCALE);
-    drawButton(button.music);
-    drawButton(button.sound);
-    drawButton(button.inventory);
-    drawButton(button.help);
+    drawButton(buttons.music);
+    drawButton(buttons.sound);
+    drawButton(buttons.inventory);
+    drawButton(buttons.help);
 
     ctx.font = "24px Kenney Mini Square";
     ctx.fillStyle = "black";
@@ -2310,9 +2389,9 @@ function drawActionPanel()
     ctx.fillText("action points:   " + actionPoints + "✦", 16*35*SCALE, 16*12*SCALE);
 
 
-    drawButton(button.skill);
-    drawButton(button.shop);
-    drawButton(button.endTurn);
+    drawButton(buttons.skill);
+    drawButton(buttons.shop);
+    drawButton(buttons.endTurn);
 }
 
 function drawLoot()
@@ -2414,8 +2493,8 @@ function drawInventory()
     ctx.fillStyle = "black";
     ctx.fillText("inventory", 16*11*SCALE, 16*7.5*SCALE);
 
-    drawButton(button.sellItem);
-    if(role == "engineer") drawButton(button.upgradeMaterial);
+    drawButton(buttons.sellItem);
+    if(role == "engineer") drawButton(buttons.upgradeMaterial);
 
     for(let i = 0; i < INVENTORY_SIZE; i++)
     {

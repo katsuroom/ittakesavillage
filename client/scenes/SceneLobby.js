@@ -71,6 +71,8 @@ function onClick(e)
 
 export function init()
 {
+    ready = false;
+    Object.values(buttons).forEach(button => button.enabled = true);
     buttons.ready.enabled = false;
     canvas.addEventListener("click", onClick);
 }
@@ -106,7 +108,6 @@ export function draw()
     }
 
     Object.values(buttons).forEach(button => drawButton(button));
-    
 
     if(sm.currentScene == sm.SCENE.lobby)
         requestAnimationFrame(draw);

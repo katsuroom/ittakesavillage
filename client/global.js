@@ -195,6 +195,7 @@ export function drawGrayscale(image, x, y, width, height)
 
 export function gameOver(msg)
 {
-    canvas.style.visibility = "hidden";
     setTimeout(() => alert(msg), 10);
+
+    location.reload();
 }

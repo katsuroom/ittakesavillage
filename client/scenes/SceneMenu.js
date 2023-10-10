@@ -131,8 +131,8 @@ function _init()
     ctx.textAlign = "left";
     ctx.textBaseline = "top";
 
-    buttons.hostGame.enabled = false;
-    buttons.joinGame.enabled = false;
+    buttons.hostGame.enabled = (textFields.playerName.text.length > 0);
+    buttons.joinGame.enabled = (textFields.playerName.text.length > 0 && textFields.roomCode.text.length > 0);
     buttons.reconnect.enabled = false;
 
     canvas.addEventListener("click", onClick);
@@ -225,7 +225,7 @@ export function draw()
     ctx.fillStyle = "black";
     ctx.textAlign = "left";
     ctx.textBaseline = "bottom";
-    ctx.fillText("2023/09/19", 20*SCALE, canvas.height - 20*SCALE);
+    ctx.fillText("2023/10/09", 20*SCALE, canvas.height - 20*SCALE);
 
     if(sm.currentScene == sm.SCENE.menu)
         requestAnimationFrame(draw);

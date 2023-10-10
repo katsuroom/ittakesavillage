@@ -75,7 +75,8 @@ for(let i = 1; i <= 26; i++)
 
 
 export const audio = {
-    "bgm": new Audio("assets/audio/bgm.mp3")
+    bgm: new Audio("assets/audio/bgm.mp3"),
+    notification: new Audio("assets/audio/notification.ogg")
 };
 
 audio.bgm.loop = true;
