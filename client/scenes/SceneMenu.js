@@ -11,12 +11,13 @@ import { TextField } from "../src/TextField.js";
 const buttons = {
     hostGame: new Button(4*16, 10*16, 6*16, 2*16, "pink", "host game"),
     reconnect: new Button(4*16, 13*16, 6*16, 2*16, "pink", "reconnect"),
-    joinGame: new Button(15*16, 13*16, 6*16, 2*16, "pink", "join game")
+    joinGame: new Button(16*16, 13*16, 6*16, 2*16, "pink", "join game"),
+    credits: new Button(16*11, 16*18, 4*16, 1.5*16, "pink", "credits"),
 };
 
 const textFields = {
     playerName: new TextField(8*16, 7*16, 10*16, 1*16, "player name", 20),
-    roomCode: new TextField(15*16, 11*16, 6*16, 1*16, "room code", 4),
+    roomCode: new TextField(16*16, 11*16, 6*16, 1*16, "room code", 4),
 };
 
 let selectedTextField = null;
@@ -59,6 +60,12 @@ function onClick(e)
     {
         playerName = textFields.playerName.text;
         socket.emit("join_game", playerName, textFields.roomCode.text);
+        return;
+    }
+
+    if(buttonClick(buttons.credits))
+    {
+        sm.loadScene(sm.SCENE.credits);
         return;
     }
 
@@ -217,6 +224,7 @@ export function draw()
     drawButton(buttons.hostGame);
     drawButton(buttons.joinGame);
     drawButton(buttons.reconnect);
+    drawButton(buttons.credits);
 
     ctx.font = "20px Kenney Mini Square";
     ctx.fillStyle = "red";
@@ -225,7 +233,7 @@ export function draw()
     ctx.fillStyle = "black";
     ctx.textAlign = "left";
     ctx.textBaseline = "bottom";
-    ctx.fillText("2023/10/09", 20*SCALE, canvas.height - 20*SCALE);
+    ctx.fillText("v1.0", 20*SCALE, canvas.height - 20*SCALE);
 
     if(sm.currentScene == sm.SCENE.menu)
         requestAnimationFrame(draw);

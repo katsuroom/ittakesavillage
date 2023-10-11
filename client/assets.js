@@ -81,6 +81,7 @@ export const audio = {
 
 audio.bgm.loop = true;
 audio.bgm.volume = 0.25;
+audio.notification.volume = 0.25;
 
 const font = {
     miniSquare:         loadFont("Kenney Mini Square", "url(assets/fonts/Kenney%20Mini%20Square.ttf)")

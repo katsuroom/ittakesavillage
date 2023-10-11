@@ -18,7 +18,7 @@ import { DayNotification } from "../src/DayNotification.js";
 
 
 // dev variables ////////////////////////////////////////////////////////////////
-const timerOn = true;
+const timerOn = false;
 
 // game variables ////////////////////////////////////////////////////////////////
 
@@ -26,7 +26,7 @@ const TIME_PER_TURN = 45;       // seconds per turn
 
 const INVENTORY_SIZE = 32;
 const UPGRADE_MATERIAL_COST = 10;
-const HEAL_VILLAGER_COST = 50;
+const HEAL_VILLAGER_COST = 40;
 const CROP_GROWTH_TIME = 3;
 const APPLE_HAPPINESS_BOOST = 10;
 const FERTILIZED_BONUS = 3;
@@ -473,7 +473,7 @@ socket.on("reputation", (_reputation) => {
 
 function onClick(e)
 {
-    // sm.loadScene(sm.SCENE.win);         // gay
+    // sm.loadScene(sm.SCENE.win);         // debug
 
     if(buttonClick(buttons.music))
     {
@@ -482,7 +482,7 @@ function onClick(e)
         return;
     }
 
-    if(buttonClick(button.sound))
+    if(buttonClick(buttons.sound))
     {
         soundOn = !soundOn;
         return;
@@ -879,13 +879,6 @@ function onKeyDown(e)
             displayHappiness = true;
             break;
         }
-        case 'h':               // hack (debug only)
-        {
-            // hack
-            // infoSelected.sick = true;
-            // socket.emit("villager", roomId, infoSelected);
-            // break;
-        }
         default:
             break;
     }
@@ -1018,7 +1011,7 @@ export function init()
     else if(role == "farmer")
         ACTION_COST.SKILL = 8;
 
-    else if(role == "sociologist")
+    else if(role == "sociologist" || role == "doctor")
         ACTION_COST.SKILL = 3;
 }
 
@@ -1040,14 +1033,18 @@ function isCurrentTurn()    // bool
 
 function triggerNotifications()
 {
-    if(getActiveWindow() == "notification") return;
+    if(getActiveWindow() == "notification" || sm.currentScene != sm.SCENE.game) return;
 
     if(notifications.length > 0)
     {
+        if(soundOn)
+        {
+            audio.notification.currentTime = 0;
+            audio.notification.play();
+        }
+
         windowStack.push("notification");
         currentNotif = notifications[0];
-        if(soundOn)
-            audio.notification.play();
         setTimeout(() => {
             currentNotif = null;
             notifications.shift();
@@ -1055,7 +1052,6 @@ function triggerNotifications()
             
             notificationBox.x = 16*34;
             notificationBox.width = 0;
-
             triggerNotifications();
         }, currentNotif.duration);
     }
@@ -1148,6 +1144,7 @@ function getSellPrice()     // int
 
 function useAction(amount)
 {
+    // return; // debug
     actionPoints -= amount;
 
     refreshAssignButton();
@@ -1352,8 +1349,8 @@ function feedVillager(villager)
 
     if(heldItemStack.item.id == villager.favoriteFood)
         villager.hunger = 5;
-    // else
-    //     villager.hunger = Math.min(villager.hunger + 2, 4);
+    else
+        villager.hunger = Math.min(villager.hunger + 1, 4);
 
     if(heldItemStack.item.id == "apple")
         villager.happiness += APPLE_HAPPINESS_BOOST;
@@ -1799,7 +1796,7 @@ function drawTooltips()
         drawTooltip(buttons.skill.interactBox, `cost: ${ACTION_COST.SKILL}✦`, "magenta");
 
     // upgrade material
-    if(getActiveWindow() == "inventory" && mouseInteract(buttons.upgradeMaterial))
+    if(role == "engineer" && getActiveWindow() == "inventory" && mouseInteract(buttons.upgradeMaterial))
         drawTooltip(buttons.upgradeMaterial.interactBox, `success: ${getUpgradeSuccessChance() * 100}%`, "cyan");
 }
 
@@ -2065,9 +2062,12 @@ function drawTitleBar()
     ctx.strokeText(currentTurnText, x, y);
     ctx.fillText(currentTurnText, x, y);
 
-    ctx.strokeText(Math.ceil(timeLeftForTurn / 60), x, y + 16*SCALE);
-    ctx.fillText(Math.ceil(timeLeftForTurn / 60), x, y + 16*SCALE);
-
+    if(timerOn)
+    {
+        ctx.strokeText(Math.ceil(timeLeftForTurn / 60), x, y + 16*SCALE);
+        ctx.fillText(Math.ceil(timeLeftForTurn / 60), x, y + 16*SCALE);
+    }
+    
     ctx.textAlign = "right";
     let fleeText = "💨".repeat(Math.max(Math.min(10 - villagers.length, 3), 0));
     let reputationText = fleeText + "        " + "👑   " + reputation + "        " + "🏠   " + upgrades;

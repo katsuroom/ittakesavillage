@@ -227,10 +227,8 @@ class Game {
             startingItems.push(item);
         }
 
-        // startingItems.push(global.ITEMS.steel);
-        // startingItems.push(global.ITEMS.steel);
-        // startingItems.push(global.ITEMS.steel);
-        // startingItems.push(global.ITEMS.steel);
+        // for(let i = 0; i < 12; ++i)
+        //     startingItems.push(global.ITEMS.steel);
         // startingItems.push(global.ITEMS.brick);
         // startingItems.push(global.ITEMS.brick);
         // startingItems.push(global.ITEMS.brick);
