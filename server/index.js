@@ -204,7 +204,7 @@ function startGame(roomId)
         }
 
         // remove one random npc from shop
-        shop.splice(Math.floor(Math.random() * shop.length), 1);
+        // shop.splice(Math.floor(Math.random() * shop.length), 1);
 
         if(player.role == "farmer")
         {

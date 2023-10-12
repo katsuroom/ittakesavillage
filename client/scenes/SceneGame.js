@@ -2069,7 +2069,7 @@ function drawTitleBar()
     }
     
     ctx.textAlign = "right";
-    let fleeText = "💨".repeat(Math.max(Math.min(10 - villagers.length, 3), 0));
+    let fleeText = "💨".repeat(Math.max(Math.min(10 - villagers.length, 4), 0));
     let reputationText = fleeText + "        " + "👑   " + reputation + "        " + "🏠   " + upgrades;
     x = 16*33.5*SCALE;
     y = 16*0.5*SCALE;
