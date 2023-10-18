@@ -64,6 +64,7 @@ function addDay(game)
         });
     }
 
+    console.log("Room ID: " + game.roomId);
     console.log(day);
 
     game.actions = [];
