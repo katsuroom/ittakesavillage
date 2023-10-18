@@ -1154,6 +1154,9 @@ function useAction(amount)
     refreshUpgradeFacilityButton();
     refreshSkillButton();
 
+    if(amount == ACTION_COST.SKILL)
+        socket.emit("actions", roomId, `Used ${role} skill.`);
+
     buttons.harvestCrop.enabled = actionPoints >= ACTION_COST.HARVEST_CROP;
 }
 
@@ -1211,6 +1214,7 @@ function plantCrop(farmland)
     farmland.daysLeft = (role == "farmer" ? CROP_GROWTH_TIME - 1 : CROP_GROWTH_TIME) + cropGrowthModifier;
     farmland.label = farmland.daysLeft + " days";
     socket.emit("farm", roomId, farm);
+    socket.emit("actions", roomId, "Planted crop.");
 
     useAction(ACTION_COST.PLANT_CROP);
 
@@ -1237,6 +1241,7 @@ function harvestCrop()
     farmland.crop = null;
     farmland.label = "empty";
     socket.emit("farm", roomId, farm);
+    socket.emit("actions", roomId, "Harvested crop.");
 
     useAction(ACTION_COST.HARVEST_CROP);
     infoSelected = null;
@@ -1247,6 +1252,7 @@ function pickTree()
     useAction(ACTION_COST.PICK_TREE);
     let tree = infoSelected;
     socket.emit("pick_tree", roomId, tree.id);
+    socket.emit("actions", roomId, "Picked apple from tree.");
 }
 
 function cutTree()
@@ -1254,6 +1260,7 @@ function cutTree()
     useAction(ACTION_COST.CUT_TREE);
     let tree = infoSelected;
     socket.emit("cut_tree", roomId, tree.id);
+    socket.emit("actions", roomId, "Cut tree.");
 }
 
 function giveItem(item, amount)
@@ -1408,6 +1415,7 @@ function useMaterial(facility)
 
         useItem(heldItemStack);
         socket.emit("facility", roomId, facility);
+        socket.emit("actions", roomId, `Used ${heldItemStack.item.name} on ${facility.label}.`);
 
         useAction(ACTION_COST.USE_MATERIAL);
     }
@@ -1457,6 +1465,8 @@ function upgradeMaterial(itemStack)
 
         useItem(itemStack);
         giveItem(newItem, 1);
+
+        socket.emit("actions", roomId, `Upgrade ${itemStack.item.name} succeeded.`);
     }
 }
 
@@ -1760,13 +1770,18 @@ function drawTooltips()
     if(selectedInfoType("farmland") && mouseInteract(buttons.harvestCrop))
         drawTooltip(buttons.harvestCrop.interactBox, `cost: ${ACTION_COST.HARVEST_CROP}✦`, "magenta");
 
-    // pick tree
-    if(selectedInfoType("tree") && mouseInteract(buttons.pickTree))
-        drawTooltip(buttons.pickTree.interactBox, `cost: ${ACTION_COST.PICK_TREE}✦`, "magenta");
+    
+    if(treesUnlocked)
+    {
+        // pick tree
+        if(selectedInfoType("tree") && !infoSelected.cut && infoSelected.daysLeft == 0 && mouseInteract(buttons.pickTree))
+            drawTooltip(buttons.pickTree.interactBox, `cost: ${ACTION_COST.PICK_TREE}✦`, "magenta");
 
-    // cut tree
-    if(selectedInfoType("tree") && mouseInteract(buttons.cutTree))
-        drawTooltip(buttons.cutTree.interactBox, `cost: ${ACTION_COST.CUT_TREE}✦`, "magenta");
+        // cut tree
+        if(selectedInfoType("tree") && !infoSelected.cut && mouseInteract(buttons.cutTree))
+            drawTooltip(buttons.cutTree.interactBox, `cost: ${ACTION_COST.CUT_TREE}✦`, "magenta");
+    }
+    
 
     // assign villager
     if(selectedInfoType("villager") && mouseInteract(buttons.assignVillager))
@@ -2643,7 +2658,7 @@ function drawShop()
 
         let price = shop[i].price;
 
-        if(!shop[i].name.includes("npc") && priceMultiplier != 1)
+        if(priceMultiplier != 1)
         {
             ctx.fillStyle = "green";
             price = Math.floor(price * priceMultiplier);

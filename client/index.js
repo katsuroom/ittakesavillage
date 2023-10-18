@@ -13,8 +13,8 @@ socket.on("server_info", (_games) => {
 });
 
 window.addEventListener("keydown", (e) => {
-    if(e.key == "v")
-        socket.emit("server_info");
+    // if(e.key == "v")
+    //     socket.emit("server_info");
 });
 
 sm.loadScene(sm.SCENE.menu);

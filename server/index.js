@@ -3,6 +3,7 @@
 const express = require("express");
 const { createServer } = require("http");
 const { Server } = require("socket.io");
+const mongoose = require("mongoose");
 
 const app = express();
 const httpServer = createServer(app);
@@ -12,6 +13,12 @@ const io = new Server(httpServer, {
         origin: "*",
     }
 });
+
+mongoose.connect("mongodb://localhost:27017/games", { useNewUrlParser: true });
+const db = mongoose.connection;
+
+db.on("error", (err) => console.log(err));
+db.once("open", () => console.log("Database connected"));
 
 app.use(express.static("../client"));
 
@@ -24,6 +31,7 @@ const Game = require("./src/Game.js");
 const Player = require("./src/Player.js");
 
 const global = require("./global.js");
+const database = require("./db.js");
 
 const MAX_PLAYERS = 6;
 
@@ -203,9 +211,6 @@ function startGame(roomId)
                 shop.push(global.SHOP["npc_" + role]);
         }
 
-        // remove one random npc from shop
-        // shop.splice(Math.floor(Math.random() * shop.length), 1);
-
         if(player.role == "farmer")
         {
             shop.push(global.SHOP["cucumber_seed"]);
@@ -220,6 +225,8 @@ function startGame(roomId)
     });
 
     io.sockets.to(game.players[game.currentTurn].id).emit("daily_loot", generateLoot(game.players[game.currentTurn]), global.LOOT_AMOUNT);
+
+    database.addNewGame(game);
 }
 
 function disconnectLobby(game, index)   // index of player in game.players
@@ -390,7 +397,7 @@ function endTurn(_roomId)
             fleeingVillagers.push(villager);
             game.villagerFlee(villager);
         }
-    }
+    }    
 
     // change player turn
     game.changeTurn();
@@ -404,7 +411,6 @@ function endTurn(_roomId)
 
         if(fleeingVillagers.length > 0)
             io.sockets.to(player.id).emit("paths", game.paths);
-
 
         io.sockets.to(player.id).emit("season", game.season, game.nextSeason);
         io.sockets.to(player.id).emit("event", game.event, game.nextEvent);
@@ -424,6 +430,8 @@ function endTurn(_roomId)
 
     let currentPlayer = game.players[game.currentTurn];
     io.sockets.to(currentPlayer.id).emit("daily_loot", generateLoot(currentPlayer), global.LOOT_AMOUNT + currentPlayer.questsComplete);
+
+    database.addDay(game);
 }
 
 
@@ -655,6 +663,8 @@ io.on("connection", (socket) => {
             default:
                 break;
         }
+
+        game.actions.push(`Purchased ${_shopItem.name} from the shop.`);
     });
 
     socket.on("engineer_skill", (_inventory) => {
@@ -683,6 +693,11 @@ io.on("connection", (socket) => {
             socket.emit("give_item", global.ITEMS.steel, amount);
             socket.emit("give_item", upgradedSteel, upgradedAmount);
         }
+    });
+
+    socket.on("actions", (_roomId, _msg) => {
+        let game = games[_roomId];
+        game.actions.push(_msg);
     });
 
     socket.on("disconnect", () => {

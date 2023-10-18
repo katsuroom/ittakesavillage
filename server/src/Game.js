@@ -65,6 +65,8 @@ class Game {
             "housing": new Facility(20),
             "power": new Facility(12)
         };
+
+        this.actions = [];      // data collection purpose only
     }
 
     initPaths()
@@ -336,6 +338,8 @@ class Game {
 
         if(facility.label == "farming")
             this.updateFarmlandAmount();
+
+        this.actions.push(`Upgraded ${facility.label} to level ${facility.level}.`);
     }
 
     // calculations

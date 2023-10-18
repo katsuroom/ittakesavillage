@@ -44,20 +44,20 @@ export function draw()
     ctx.textAlign = "center";
     ctx.fillText("credits", canvas.width / 2, 16*3*SCALE);
 
-    ctx.font = "24px Arial";
+    ctx.font = "20px Arial";
     ctx.textAlign = "left";
 
-    ctx.fillText("Game developed by:", 16*3*SCALE, 16*6*SCALE);
+    ctx.fillText("Game designed and developed by:", 16*3*SCALE, 16*6*SCALE);
     ctx.fillText("Kerrance Dai, Boming Zheng, and Paul Zou", 16*3*SCALE, 16*7*SCALE);
 
-    ctx.fillText("Art by:", 16*3*SCALE, 16*9*SCALE);
-    ctx.fillText("Paul Zou and kenney.nl", 16*3*SCALE, 16*10*SCALE);
+    ctx.fillText("Supervisor: Lori Scarlatos", 16*3*SCALE, 16*9*SCALE);
 
-    ctx.fillText("Music: \"神隠しの真相\" by しゃろう", 16*3*SCALE, 16*12*SCALE);
-    ctx.fillText("Provided by DOVA-SYNDROME", 16*3*SCALE, 16*13*SCALE);
+    ctx.fillText("Art by: Paul Zou and kenney.nl", 16*3*SCALE, 16*11*SCALE);
 
-    ctx.fillText("Sound effects by:", 16*3*SCALE, 16*15*SCALE);
-    ctx.fillText("ObsydianX (itch.io)", 16*3*SCALE, 16*16*SCALE);
+    ctx.fillText("Music: \"神隠しの真相\" by しゃろう", 16*3*SCALE, 16*13*SCALE);
+    ctx.fillText("Provided by DOVA-SYNDROME (id: 7692)", 16*3*SCALE, 16*14*SCALE);
+
+    ctx.fillText("Sound effects by: ObsydianX (itch.io)", 16*3*SCALE, 16*16*SCALE);
 
     drawButton(buttons.menu);
 
