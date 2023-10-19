@@ -8,11 +8,11 @@ const {Option, RandomTable} = require("./src/RandomTable.js");
 const ShopItem = require("./src/ShopItem.js");
 
 
-const VILLAGER_COUNT = 10;
+const VILLAGER_COUNT = 8;
 const FARMLAND_COUNT = 32;
 
 const TREE_COUNT = 4;
-const TREE_GROWTH_TIME = 10;
+const TREE_GROWTH_TIME = 8;
 
 const FARMLAND_UNLOCKED = false;
 const FARMLAND_LOCKED = true;

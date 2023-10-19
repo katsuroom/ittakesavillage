@@ -353,8 +353,8 @@ class Game {
 
     updateFacilityProgress()
     {
-        if(this.facilities["power"].assignedVillagers.length == 0)
-            return;
+        // if(this.facilities["power"].assignedVillagers.length == 0)
+        //     return;
 
         this.villagers.forEach(villager => {
             
@@ -365,6 +365,10 @@ class Game {
             if(this.facilities[villager.currentTask].level >= 5) return;
 
             let baseProgress = 2;
+
+            if(this.facilities["power"].assignedVillagers.length > 0)
+                baseProgress = 3;
+
             let leastEffectiveMult, mostEffectiveMult = 0;
 
             switch(this.facilities["education"].level)

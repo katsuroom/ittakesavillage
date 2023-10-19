@@ -3,7 +3,7 @@
 const express = require("express");
 const { createServer } = require("http");
 const { Server } = require("socket.io");
-// const mongoose = require("mongoose");
+const mongoose = require("mongoose");
 
 const app = express();
 const httpServer = createServer(app);
@@ -14,11 +14,11 @@ const io = new Server(httpServer, {
     }
 });
 
-// mongoose.connect("mongodb://localhost:27017/games", { useNewUrlParser: true });
-// const db = mongoose.connection;
+mongoose.connect("mongodb://localhost:27017/games", { useNewUrlParser: true });
+const db = mongoose.connection;
 
-// db.on("error", (err) => console.log(err));
-// db.once("open", () => console.log("Database connected"));
+db.on("error", (err) => console.log(err));
+db.once("open", () => console.log("Database connected"));
 
 app.use(express.static("../client"));
 

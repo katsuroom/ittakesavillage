@@ -33,6 +33,8 @@ const FERTILIZED_BONUS = 3;
 const HARVEST_SEED_CHANCE = 0.1;
 const ACTION_POINTS = 8;
 
+const MAX_VILLAGERS = 8;
+
 let ACTION_COST = {
     UPGRADE_FACILITY: 4,
     PLANT_CROP: 1,
@@ -1057,8 +1059,8 @@ function triggerNotifications()
     }
     else
     {
-        if(day > 1 && villagers.length < 7)
-            gameOver("GAME OVER: There are fewer than 7 villagers remaining.");
+        if(day > 1 && villagers.length < (MAX_VILLAGERS - 3))
+            gameOver("GAME OVER: More than 3 villagers have left the village");
     }
 }
 
@@ -2084,7 +2086,7 @@ function drawTitleBar()
     }
     
     ctx.textAlign = "right";
-    let fleeText = "💨".repeat(Math.max(Math.min(10 - villagers.length, 4), 0));
+    let fleeText = "💨".repeat(Math.max(Math.min(MAX_VILLAGERS - villagers.length, 4), 0));
     let reputationText = fleeText + "        " + "👑   " + reputation + "        " + "🏠   " + upgrades;
     x = 16*33.5*SCALE;
     y = 16*0.5*SCALE;

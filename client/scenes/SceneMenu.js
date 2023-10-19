@@ -233,7 +233,7 @@ export function draw()
     ctx.fillStyle = "black";
     ctx.textAlign = "left";
     ctx.textBaseline = "bottom";
-    ctx.fillText("v1.1", 20*SCALE, canvas.height - 20*SCALE);
+    ctx.fillText("v1.2", 20*SCALE, canvas.height - 20*SCALE);
 
     if(sm.currentScene == sm.SCENE.menu)
         requestAnimationFrame(draw);
