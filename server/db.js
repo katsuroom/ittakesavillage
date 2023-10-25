@@ -11,7 +11,7 @@ const GameSchema = new Schema({
 const GameModel = mongoose.model("game", GameSchema);
 
 
-function addNewGame(game)
+function addNewGame2(game)
 {
     let model = GameModel({
         roomId: game.roomId,
@@ -24,13 +24,13 @@ function addNewGame(game)
     addDay(game);
 }
 
-function addNewGame1(game)
+function addNewGame(game)
 {
     console.log("Room ID: " + game.roomId);
     console.log("Players: " + game.players.length);
 }
 
-function addDay1(game)
+function addDay(game)
 {
     let day = {
         budget: game.budget,
@@ -70,7 +70,7 @@ function addDay1(game)
     game.actions = [];
 }
 
-async function addDay(game)
+async function addDay2(game)
 {
     let models = await GameModel.find({roomId: game.roomId});
     let model = models[0];

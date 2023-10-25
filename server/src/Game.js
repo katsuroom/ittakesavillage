@@ -314,12 +314,12 @@ class Game {
                 // facility.cost["steel"] = 1;
                 break;
             case 3:
-                facility.progressMax = 50;
+                facility.progressMax = 40;
                 // facility.cost["brick"] = 8;
                 // facility.cost["steel"] = 2;
                 break;
             case 4:
-                facility.progressMax = 80;
+                facility.progressMax = 60;
                 // facility.cost["brick"] = 10;
                 // facility.cost["steel"] = 5;
                 break;
