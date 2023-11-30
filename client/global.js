@@ -30,6 +30,8 @@ export let roomId = "";
 export let socketId = "";
 export let inventory = [];             // array of ItemStack objects in inventory
 
+export let isHost = false;
+
 
 // functions ////////////////////////////////////////////////////////////////
 

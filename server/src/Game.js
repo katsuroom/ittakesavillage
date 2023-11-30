@@ -13,6 +13,7 @@ class Game {
     {
         // lobby info
         this.roomId = roomId;
+        this.difficulty = "easy";
 
         this.players = [];
         this.started = false;
@@ -123,7 +124,9 @@ class Game {
 
     initVillagers()
     {
-        for(let i = 0; i < global.VILLAGER_COUNT; i++)
+        let villagerCount = this.difficulty == "easy" ? 8 : 12;
+
+        for(let i = 0; i < villagerCount; i++)
         {
             let villager = this.createVillager();
 
@@ -142,6 +145,8 @@ class Game {
         // restore part of path
         for(let i = 1; i < 25; i++)
             this.paths[5][i] = '-';
+
+        this.players.forEach(player => Game.io.sockets.to(player.id).emit("max_villagers", villagerCount));
     }
 
     sortVillagers()
@@ -857,6 +862,13 @@ class Game {
 
     getNextEvent()
     {
+        // if on hard difficulty, use Winter event table
+        if(this.difficulty == "hard")
+        {
+            let event = global.EVENTS_WINTER.getItem();
+            return event;
+        }
+
         // calculate season for next event
         let dayCount = this.day + this.event.duration;
 

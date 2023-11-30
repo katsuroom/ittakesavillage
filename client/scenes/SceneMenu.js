@@ -44,6 +44,7 @@ function onClick(e)
     if(buttonClick(buttons.hostGame))
     {
         playerName = textFields.playerName.text;
+        isHost = true;
         socket.emit("host_game", playerName);
         sm.loadScene(sm.SCENE.lobby);
         return;

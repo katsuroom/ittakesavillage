@@ -11,7 +11,7 @@ const GameSchema = new Schema({
 const GameModel = mongoose.model("game", GameSchema);
 
 
-function addNewGame2(game)
+function addNewGame(game)
 {
     let model = GameModel({
         roomId: game.roomId,
@@ -24,13 +24,13 @@ function addNewGame2(game)
     addDay(game);
 }
 
-function addNewGame(game)
+function addNewGame1(game)
 {
     console.log("Room ID: " + game.roomId);
     console.log("Players: " + game.players.length);
 }
 
-function addDay(game)
+function addDay1(game)
 {
     let day = {
         budget: game.budget,
@@ -70,18 +70,17 @@ function addDay(game)
     game.actions = [];
 }
 
-async function addDay2(game)
+async function addDay(game)
 {
-    let models = await GameModel.find({roomId: game.roomId});
-    let model = models[0];
-
     let day = {
+        day: game.day,
         budget: game.budget,
         event: game.event.name,
         player: {},
         villagers: [],
         facilities: [],
-        actions: game.actions
+        // actions: game.actions
+        actions: []
     };
 
     day.player = {
@@ -107,10 +106,27 @@ async function addDay2(game)
         });
     }
 
-    model.days.push(day);
+    try
+    {
+        let models = await GameModel.find({roomId: game.roomId});
+        let model = models[0];
 
-    model.save();
+        if(model.days.length > 0)
+            model.days[model.days.length - 1].actions = game.actions;
 
+        model.days.push(day);
+
+        let index = model.days.length - 1;
+        model.markModified(`days.${index}`);
+        model.save();
+    }
+    catch(err)
+    {
+        console.log(err);
+        console.log("Room ID: " + game.roomId);
+        console.log(day);
+    }
+    
     game.actions = [];
 }
 

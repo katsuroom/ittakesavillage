@@ -14,11 +14,19 @@ const io = new Server(httpServer, {
     }
 });
 
-// mongoose.connect("mongodb://localhost:27017/games", { useNewUrlParser: true });
-// const db = mongoose.connection;
+// const connectDB = async() => {
+//     try
+//     {
+//         await mongoose.connect("mongodb+srv://ittakesavillage:VATchF43Ijesgzvj@cluster0.loirgxz.mongodb.net/games", { useNewUrlParser: true });
+//         console.log("Database connected");
+//     }
+//     catch(error)
+//     {
+//         console.log("Connect failed " + error.message);
+//     }
+// }
 
-// db.on("error", (err) => console.log(err));
-// db.once("open", () => console.log("Database connected"));
+// connectDB();
 
 app.use(express.static("../client"));
 
@@ -75,6 +83,7 @@ function joinGame(socket, playerName, roomId)
         games[roomId].players.push(new Player(playerName, socket.id));
         socket.emit("join_lobby");
         socket.emit("refresh_roles", games[roomId].rolesPresent);
+        socket.emit("select_difficulty", games[roomId].difficulty);
 
         games[roomId].players.forEach(player => {
             io.sockets.to(player.id).emit("refresh_lobby", games[roomId].players, roomId);
@@ -136,6 +145,15 @@ function selectRole(socket, roomId, newRole)
             io.sockets.to(player.id).emit("refresh_lobby", games[roomId].players, roomId);
         });
     }
+}
+
+function selectDifficulty(roomId, difficulty)
+{
+    games[roomId].difficulty = difficulty;
+
+    games[roomId].players.forEach(player => {
+        io.sockets.to(player.id).emit("select_difficulty", difficulty);
+    });
 }
 
 function ready(socket, roomId)
@@ -226,7 +244,7 @@ function startGame(roomId)
 
     io.sockets.to(game.players[game.currentTurn].id).emit("daily_loot", generateLoot(game.players[game.currentTurn]), global.LOOT_AMOUNT);
 
-    database.addNewGame(game);
+    // database.addNewGame(game);
 }
 
 function disconnectLobby(game, index)   // index of player in game.players
@@ -431,7 +449,7 @@ function endTurn(_roomId)
     let currentPlayer = game.players[game.currentTurn];
     io.sockets.to(currentPlayer.id).emit("daily_loot", generateLoot(currentPlayer), global.LOOT_AMOUNT + currentPlayer.questsComplete);
 
-    database.addDay(game);
+    // database.addDay(game);
 }
 
 
@@ -447,6 +465,7 @@ io.on("connection", (socket) => {
     socket.on("host_game", (_playerName) => hostGame(socket, _playerName));
     socket.on("join_game", (_playerName, _roomId) => joinGame(socket, _playerName, _roomId));
     socket.on("select_role", (_roomId, _newRole) => selectRole(socket, _roomId, _newRole));
+    socket.on("select_difficulty", (_roomId, _difficulty) => selectDifficulty(_roomId, _difficulty));
     socket.on("ready", (_roomId) => ready(socket, _roomId));
     socket.on("check_reconnect", (_roomId, _socketId) => checkReconnect(socket, _roomId, _socketId));
     socket.on("reconnect", (_roomId, _socketId) => reconnect(socket, _roomId, _socketId));

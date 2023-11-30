@@ -33,7 +33,7 @@ const FERTILIZED_BONUS = 3;
 const HARVEST_SEED_CHANCE = 0.1;
 const ACTION_POINTS = 8;
 
-const MAX_VILLAGERS = 8;
+let maxVillagers = 8;
 
 let ACTION_COST = {
     UPGRADE_FACILITY: 4,
@@ -96,7 +96,7 @@ let priceMultiplier = 1;        // multiplier for shop items
 
 // ui ////////////////////////////////////////////////////////////////
 
-let musicOn = true;
+let musicOn = false;
 let soundOn = true;
 
 const ACTION_STATES = {
@@ -359,6 +359,10 @@ socket.on("villagers", (_villagers) => {
         infoSelected = villagers.find(obj => obj.name == infoSelected.name);
 });
 
+socket.on("max_villagers", (_maxVillagers) => {
+    maxVillagers = _maxVillagers;
+});
+
 socket.on("paths", (_paths) => {
     paths = _paths;
 });
@@ -468,7 +472,7 @@ socket.on("set_variable", (_var, _value) => {
 
 socket.on("reputation", (_reputation) => {
     reputation = _reputation;
-})
+});
 
 
 // event handlers ////////////////////////////////////////////////////////////////
@@ -938,7 +942,8 @@ export function init()
     canvas.height = img.background.height * SCALE;
 
     audio.bgm.currentTime = 0;
-    audio.bgm.play();
+    if(musicOn)
+        audio.bgm.play();
 
     ctx.imageSmoothingEnabled = false;
     ctx.textAlign = "left";
@@ -1059,7 +1064,7 @@ function triggerNotifications()
     }
     else
     {
-        if(day > 1 && villagers.length < (MAX_VILLAGERS - 3))
+        if(day > 1 && villagers.length < (maxVillagers - 3))
             gameOver("GAME OVER: More than 3 villagers have left the village");
     }
 }
@@ -2086,7 +2091,7 @@ function drawTitleBar()
     }
     
     ctx.textAlign = "right";
-    let fleeText = "💨".repeat(Math.max(Math.min(MAX_VILLAGERS - villagers.length, 4), 0));
+    let fleeText = "💨".repeat(Math.max(Math.min(maxVillagers - villagers.length, 4), 0));
     let reputationText = fleeText + "        " + "👑   " + reputation + "        " + "🏠   " + upgrades;
     x = 16*33.5*SCALE;
     y = 16*0.5*SCALE;

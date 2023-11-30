@@ -28,6 +28,10 @@ export class Button {
                 this.colorA = "#66ccff";
                 this.colorB = "#80d4ff";
                 break;
+            case "purple":
+                this.colorA = "#9966ff";
+                this.colorB = "#9999ff";
+                break;
             default:
                 this.colorA = "white";
                 this.colorB = "black";

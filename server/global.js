@@ -8,7 +8,6 @@ const {Option, RandomTable} = require("./src/RandomTable.js");
 const ShopItem = require("./src/ShopItem.js");
 
 
-const VILLAGER_COUNT = 8;
 const FARMLAND_COUNT = 32;
 
 const TREE_COUNT = 4;
@@ -115,13 +114,13 @@ const EVENTS_SPRING = new RandomTable([
     new Option(EVENTS["cloudy_day"], 1),
     new Option(EVENTS["harvest"], 11),
     new Option(EVENTS["rainy_day"], 15),
-    new Option(EVENTS["free_cake"], 2),
+    new Option(EVENTS["free_cake"], 1),
     new Option(EVENTS["black_friday"], 8),
-    new Option(EVENTS["drought"], 2),
+    new Option(EVENTS["drought"], 5),
     new Option(EVENTS["disease"], 5),
     new Option(EVENTS["heat_stroke"], 8),
     // new Option(EVENTS["death"], 8),
-    new Option(EVENTS["flood"], 10),
+    // new Option(EVENTS["flood"], 10),
 ]);
 
 const EVENTS_SUMMER = new RandomTable([
@@ -175,7 +174,6 @@ const DAILY_LOOT = new RandomTable([
 const LOOT_AMOUNT = 2;
 
 module.exports = {
-    VILLAGER_COUNT,
     FARMLAND_COUNT,
     FARMLAND_UNLOCKED,
     FARMLAND_LOCKED,

@@ -18,6 +18,7 @@ function loadFont(name, src)
 
 export const img = {
     menu:               loadImage("assets/art/menu.png"),
+    lobby:              loadImage("assets/art/lobby.png"),
     background:         loadImage("assets/art/map.png"),
     villagerHair:       loadImage("assets/art/villager_hair.png"),
     villagerHeadarms:   loadImage("assets/art/villager_headarms.png"),
