@@ -32,4 +32,4 @@ The project is divided into two main folders:
 
 The `map` folder contains maps and tilesheets for designing the game layout, and includes project files for the Tiled map editor. The contents in this folder are used for development only and are not loaded when the game is running.
 
-Documentation for `client` and `server` are available in the wiki tab.
+Documentation for `client` and `server`, and instructions for deployment are available in the [wiki](https://github.com/katsuroom/ittakesavillage/wiki).

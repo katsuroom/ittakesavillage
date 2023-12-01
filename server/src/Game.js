@@ -645,18 +645,6 @@ class Game {
         villager.labelColor = "white";
     }
 
-    checkDeathConditions() // return bool
-    {
-        return true;
-
-        // let totalHappiness = 0;
-        // this.villagers.forEach(villager => totalHappiness += villager.happiness);
-
-        // let avgHappiness = totalHappiness / this.villagers.length;
-
-        // return avgHappiness <= global.DEATH_THRESHOLD;
-    }
-
     eventStart(event)
     {
         if(event.blocked)
@@ -741,20 +729,17 @@ class Game {
                 }
             case "death":
                 {
-                    if(this.checkDeathConditions())
-                    {
-                        let index = Math.floor(Math.random() * this.villagers.length);
-                        let villager = this.villagers[index];
-                        this.removeVillagerFromFacility(villager);
+                    let index = Math.floor(Math.random() * this.villagers.length);
+                    let villager = this.villagers[index];
+                    this.removeVillagerFromFacility(villager);
 
-                        this.villagers.splice(index, 1);
-                        this.villagerFlee(villager);
+                    this.villagers.splice(index, 1);
+                    this.villagerFlee(villager);
 
-                        this.players.forEach(player => {
-                            Game.io.sockets.to(player.id).emit("villager_flee", villager);
-                            Game.io.sockets.to(player.id).emit("paths", this.paths);
-                        });
-                    }
+                    this.players.forEach(player => {
+                        Game.io.sockets.to(player.id).emit("villager_flee", villager);
+                        Game.io.sockets.to(player.id).emit("paths", this.paths);
+                    });
                     break;
                 }
             default: break;
@@ -914,7 +899,7 @@ class Game {
             else
             {
                 // prevents consecutive death events
-                if(this.event.id != "death" && this.checkDeathConditions())
+                if(this.event.id != "death")
                     break;
             }
         }
