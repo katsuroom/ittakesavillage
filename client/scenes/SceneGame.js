@@ -2615,10 +2615,18 @@ function drawInventory()
 
             if(inventory[i].item.type == "food" && inventoryState == INVENTORY_STATES.SELLING)
             {
+                ctx.font = '18px Kenney Mini Square';
                 ctx.fillStyle = "green";
-                ctx.fillText(getSellPrice(),
-                    16*(9.75 + ((i % 8) + 1) * INVENTORY_BOX_SIZE - 0.25)*SCALE,
-                    16*(9 + (Math.floor(i / 8) + 1) * INVENTORY_BOX_SIZE - 1.75)*SCALE);
+                ctx.textBaseline = "top";
+                ctx.textAlign = "left";
+
+                ctx.strokeText("$" + getSellPrice(),
+                    16*(11 + ((i % 8) + 0) * INVENTORY_BOX_SIZE + 0.25)*SCALE,
+                    16*(9 + (Math.floor(i / 8) + 0) * INVENTORY_BOX_SIZE + 0.2)*SCALE);
+
+                ctx.fillText("$" + getSellPrice(),
+                    16*(11 + ((i % 8) + 0) * INVENTORY_BOX_SIZE + 0.25)*SCALE,
+                    16*(9 + (Math.floor(i / 8) + 0) * INVENTORY_BOX_SIZE + 0.2)*SCALE);
             }
         }
     }
