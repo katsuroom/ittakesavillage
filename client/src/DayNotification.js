@@ -31,15 +31,15 @@ export class DayNotification {
 
             // ctx.fillRect(16*19.5*SCALE, 16*4.5*SCALE, 16*3*SCALE, 16*1*SCALE);
             ctx.strokeStyle = "black";
-            ctx.lineWidth = 8;
+            ctx.lineWidth = 16;
 
             ctx.fillStyle = "white";
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
-            ctx.font = "32px Kenney Mini Square";
+            ctx.font = "72px Kenney Mini Square";
             
-            ctx.strokeText(DayNotification.text, canvas.width/2, 16*5*SCALE);
-            ctx.fillText(DayNotification.text, canvas.width/2, 16*5*SCALE);
+            ctx.strokeText(DayNotification.text, canvas.width/2, 16*4*SCALE);
+            ctx.fillText(DayNotification.text, canvas.width/2, 16*4*SCALE);
 
             ctx.restore();
             

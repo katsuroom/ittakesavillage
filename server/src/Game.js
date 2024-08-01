@@ -162,29 +162,19 @@ class Game {
         let padding = 10;
 
         this.facilities["water"].label = "water";
-        this.facilities["water"].labelColor = "#33CCFF";
         this.facilities["water"].interactBox = {x: 176 - padding, y: 112 - padding, width: 128 + 2 * padding, height: 64 + 2 * padding};
 
         this.facilities["farming"].label = "farming";
-        this.facilities["farming"].labelColor = "#00CC33";
         this.facilities["farming"].interactBox = {x: 368 - padding, y: 112 - padding, width: 128 + 2 * padding, height: 64 + 2 * padding};
 
         this.facilities["education"].label = "education";
-        this.facilities["education"].labelColor = "#FFCC66";
         this.facilities["education"].interactBox = {x: 176 - padding, y: 240 - padding, width: 128 + 2 * padding, height: 64 + 2 * padding};
 
         this.facilities["housing"].label = "housing";
-        this.facilities["housing"].labelColor = "#FF6666";
         this.facilities["housing"].interactBox = {x: 368 - padding, y: 240 - padding, width: 128 + 2 * padding, height: 64 + 2 * padding};
 
         this.facilities["power"].label = "power";
-        this.facilities["power"].labelColor = "#FFFF00";
         this.facilities["power"].interactBox = {x: 16*16, y: 16*2, width: 64, height: 16*3};
-
-        // Object.values(this.facilities).forEach(facility => {
-        //     facility.cost["brick"] = 3;
-        //     facility.cost["steel"] = 0;
-        // });
     }
 
     initBudget()
@@ -523,8 +513,7 @@ class Game {
 
                 if(sick)
                 {
-                    villager.sick = true;
-                    villager.labelColor = "rgb(0,191,0)";
+                    this.villagerSick(villager);
                 }
             }
         });
@@ -636,13 +625,11 @@ class Game {
     villagerSick(villager)
     {
         villager.sick = true;
-        villager.labelColor = "rgb(0,191,0)";
     }
 
     villagerHeal(villager)
     {
         villager.sick = false;
-        villager.labelColor = "white";
     }
 
     eventStart(event)

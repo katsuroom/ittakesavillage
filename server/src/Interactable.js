@@ -3,7 +3,6 @@ class Interactable {
     constructor()
     {
         this.label = "";
-        this.labelColor = "white";
         this.infoType = "";
         this.interactBox = { 
             x: 0,

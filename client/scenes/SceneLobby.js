@@ -1,8 +1,6 @@
 import * as global from "../global.js";
 Object.entries(global).forEach(([name, exported]) => window[name] = exported);
 
-import {img} from "../assets.js";
-
 import * as sm from "../src/SceneManager.js";
 import { Button } from "../src/Button.js";
 
@@ -165,6 +163,7 @@ export function draw()
             ctx.fillText("12 villagers", 3*16*SCALE, 15*16*SCALE);
             ctx.fillText("bad events only", 3*16*SCALE, 16*16*SCALE);
             break;
+
         case mouseInteract(buttons.chief):
             ctx.fillStyle = "black";
             ctx.fillText("chief (required)", 3*16*SCALE, 14*16*SCALE);
@@ -178,8 +177,9 @@ export function draw()
             ctx.fillText("doctor", 3*16*SCALE, 14*16*SCALE);
             ctx.fillText("- can heal 2 sick villagers per day for free", 3*16*SCALE, 15*16*SCALE);
             ctx.fillText("- number of free heals increases per level of housing", 3*16*SCALE, 16*16*SCALE);
+            ctx.fillText("- other players receive 1 free heal per day", 3*16*SCALE, 17*16*SCALE);
             ctx.fillStyle = "cornflowerblue";
-            ctx.fillText("- skill: prevents a villager from turning sick until the next mutation", 3*16*SCALE, 17*16*SCALE);
+            ctx.fillText("- skill: makes a villager immune from sickness until the next mutation", 3*16*SCALE, 18*16*SCALE);
             break;
         case mouseInteract(buttons.scientist):
             ctx.fillStyle = "black";

@@ -77,12 +77,14 @@ for(let i = 1; i <= 26; i++)
 
 export const audio = {
     bgm: new Audio("assets/audio/bgm.mp3"),
-    notification: new Audio("assets/audio/notification.ogg")
+    notification: new Audio("assets/audio/notification.ogg"),
+    click: new Audio("assets/audio/click.ogg")
 };
 
 audio.bgm.loop = true;
 audio.bgm.volume = 0.25;
 audio.notification.volume = 0.25;
+audio.click.volume = 0.5;
 
 const font = {
     miniSquare:         loadFont("Kenney Mini Square", "url(assets/fonts/Kenney%20Mini%20Square.ttf)")

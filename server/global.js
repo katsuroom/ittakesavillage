@@ -63,18 +63,18 @@ const QUESTS = [
 });
 
 const SHOP = {
-    "npc_doctor":       new ShopItem("doctor npc", "npc_doctor", 400, 1),
-    "npc_scientist":    new ShopItem("scientist npc", "npc_scientist", 400, 1),
-    "npc_sociologist":  new ShopItem("sociologist npc", "npc_sociologist", 400, 1),
-    "npc_farmer":       new ShopItem("farmer npc", "npc_farmer", 400, 1),
-    "npc_engineer":     new ShopItem("engineer npc", "npc_engineer", 400, 1),
+    "npc_doctor":       new ShopItem("doctor npc", "npc_doctor", 400, 1, "every player receives 1 free heal per day"),
+    "npc_scientist":    new ShopItem("scientist npc", "npc_scientist", 400, 1, "unlocks apple trees"),
+    "npc_sociologist":  new ShopItem("sociologist npc", "npc_sociologist", 400, 1, "allows every player to view villager happiness"),
+    "npc_farmer":       new ShopItem("farmer npc", "npc_farmer", 400, 1, "unlocks seeds in the shop"),
+    "npc_engineer":     new ShopItem("engineer npc", "npc_engineer", 400, 1, "unlocks steel in the shop"),
 
-    "cucumber_seed":    new ShopItem("cucumber seed", "cucumber_seed", 10, -1),
-    "tomato_seed":      new ShopItem("tomato seed", "tomato_seed", 10, -1),
-    "potato_seed":      new ShopItem("potato seed", "potato_seed", 10, -1),
-    "carrot_seed":      new ShopItem("carrot seed", "carrot_seed", 10, -1),
+    "cucumber_seed":    new ShopItem("cucumber seed", "cucumber_seed", 10, -1, "one cucumber seed"),
+    "tomato_seed":      new ShopItem("tomato seed", "tomato_seed", 10, -1, "one tomato seed"),
+    "potato_seed":      new ShopItem("potato seed", "potato_seed", 10, -1, "one potato seed"),
+    "carrot_seed":      new ShopItem("carrot seed", "carrot_seed", 10, -1, "one carrot seed"),
 
-    "steel":            new ShopItem("steel", "steel", 30, -1),
+    "steel":            new ShopItem("steel", "steel", 30, -1, "a good building material"),
 }
 
 const SEASONS = [
@@ -82,9 +82,6 @@ const SEASONS = [
     new Season("summer", 10),
     new Season("autumn", 10),
     new Season("winter", 10),
-
-    // new Season("winter", 40),
-
     new Season("game end", 0)
 ];
 
@@ -119,8 +116,6 @@ const EVENTS_SPRING = new RandomTable([
     new Option(EVENTS["drought"], 5),
     new Option(EVENTS["disease"], 5),
     new Option(EVENTS["heat_stroke"], 8),
-    // new Option(EVENTS["death"], 8),
-    // new Option(EVENTS["flood"], 10),
 ]);
 
 const EVENTS_SUMMER = new RandomTable([

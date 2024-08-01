@@ -17,21 +17,16 @@ import { NotificationQuest } from "../src/NotificationQuest.js";
 import { DayNotification } from "../src/DayNotification.js";
 
 
-// dev variables ////////////////////////////////////////////////////////////////
-const timerOn = false;
-
 // game variables ////////////////////////////////////////////////////////////////
 
-const TIME_PER_TURN = 45;       // seconds per turn
-
-const INVENTORY_SIZE = 32;
-const UPGRADE_MATERIAL_COST = 10;
-const HEAL_VILLAGER_COST = 40;
-const CROP_GROWTH_TIME = 3;
-const APPLE_HAPPINESS_BOOST = 10;
-const FERTILIZED_BONUS = 3;
-const HARVEST_SEED_CHANCE = 0.1;
-const ACTION_POINTS = 8;
+const INVENTORY_SIZE = 32;                  // number of slots for inventory
+const UPGRADE_MATERIAL_COST = 10;           // price for upgrading material
+const HEAL_VILLAGER_COST = 40;              // price for healing a sick villager
+const CROP_GROWTH_TIME = 3;                 // default number of days for crops to grow
+const APPLE_HAPPINESS_BOOST = 10;           // number of happiness given by feeding an apple
+const FERTILIZED_BONUS = 3;                 // number of extra crops given by fertilized farmland
+const HARVEST_SEED_CHANCE = 0;              // probability for harvesting a crop to give its matching seed, formerly 0.1
+const ACTION_POINTS = 8;                    // number of action points per day
 
 let maxVillagers = 8;
 
@@ -50,7 +45,6 @@ let ACTION_COST = {
 let currentTurn = 0;
 let actionPoints = 0;
 let skillUsed = false;                  // whether or not skill has been used this turn
-let timeLeftForTurn = TIME_PER_TURN;    // remaining time for this turn;
 
 let day = 0;
 let season = "";
@@ -170,7 +164,6 @@ const buttons = {
 // socket messages ////////////////////////////////////////////////////////////////
 
 socket.on("change_turn", (_currentTurn) => {
-    timeLeftForTurn = TIME_PER_TURN * 60;           // * 60 due to 60 FPS
     currentTurn = _currentTurn;
     actionPoints = ACTION_POINTS;
     skillUsed = false;
@@ -485,12 +478,14 @@ function onClick(e)
     {
         musicOn = !musicOn;
         musicOn ? audio.bgm.play() : audio.bgm.pause();
+        playClickSound();
         return;
     }
 
     if(buttonClick(buttons.sound))
     {
         soundOn = !soundOn;
+        playClickSound();
         return;
     }
 
@@ -499,6 +494,7 @@ function onClick(e)
     if(buttonClick(buttons.endTurn))
     {
         endTurn();
+        playClickSound();
         return;
     }
 
@@ -509,6 +505,7 @@ function onClick(e)
         else
             openShop();
 
+        playClickSound();
         return;
     }
 
@@ -516,6 +513,7 @@ function onClick(e)
     {
         closeInventory();
         useSkill();
+        playClickSound();
         return;
     }
 
@@ -525,12 +523,15 @@ function onClick(e)
             closeInventory();
         else
             openInventory();
+
+        playClickSound();
     }
 
 
     if(selectedInfoType("farmland") && buttonClick(buttons.harvestCrop))
     {
         harvestCrop();
+        playClickSound();
         return;
     }
 
@@ -538,6 +539,7 @@ function onClick(e)
     {
         useAction(ACTION_COST.UPGRADE_FACILITY);
         socket.emit("upgrade_facility", roomId, infoSelected);
+        playClickSound();
         return;
     }
 
@@ -546,11 +548,13 @@ function onClick(e)
         if(buttonClick(buttons.assignVillager))
         {
             startAssign();
+            playClickSound();
             return;
         }
         else if(buttonClick(buttons.healVillager))
         {
             healVillager();
+            playClickSound();
             return;
         }
         
@@ -561,12 +565,14 @@ function onClick(e)
         if(buttonClick(buttons.pickTree))
         {
             pickTree();
+            playClickSound();
             return;
         }
         
         else if(buttonClick(buttons.cutTree))
         {
             cutTree();
+            playClickSound();
             return;
         }
     }
@@ -597,6 +603,7 @@ function onClick(e)
                 if(mouseInteract(obj))
                 {
                     feedVillager(villager);
+                    playClickSound();
                     useItem = true;
                 }
             });
@@ -617,6 +624,7 @@ function onClick(e)
                 let farmland = farm[i];
                 if(!farmland.locked && mouseInteract(farmland))
                 {
+                    playClickSound();
                     if(actionState == ACTION_STATES.SELECT_FARMLAND)
                     {
                         farmland.fertilized = true;
@@ -647,6 +655,7 @@ function onClick(e)
             Object.values(facilities).forEach(facility => {
                 if(mouseInteract(facility))
                 {
+                    playClickSound();
                     if(assigningVillager)
                     {
                         finishAssign(facility);
@@ -708,6 +717,7 @@ function onClick(e)
                     assigningVillager = null;
                     buttons.assignVillager.enabled = true;
                 }
+                playClickSound();
                 infoSelected = villager;
 
                 refreshHealButton();
@@ -717,6 +727,7 @@ function onClick(e)
         trees.forEach(tree => {
             if(mouseInteract(tree))
             {
+                playClickSound();
                 infoSelected = tree;
 
                 if(actionState == ACTION_STATES.SELECT_FARMLAND && treesUnlocked && !tree.cut)
@@ -773,6 +784,7 @@ function onClick(e)
         {
             inventoryState = INVENTORY_STATES.SELLING;
             refreshInventoryButtons();
+            playClickSound();
             return;
         }
 
@@ -804,11 +816,13 @@ function onClick(e)
                 else if(inventoryState == INVENTORY_STATES.SELLING && inventory[i].item.type == "food")
                 {
                     sellItem(inventory[i]);
+                    playClickSound();
                     return;
                 }
                 else if(inventoryState == INVENTORY_STATES.UPGRADING && inventory[i].item.type == "material" && !inventory[i].item.upgraded)
                 {
                     upgradeMaterial(inventory[i]);
+                    playClickSound();
                 }
             }
         }
@@ -840,6 +854,7 @@ function onClick(e)
                 if(mouseInteract(obj))
                 {
                     collectLoot(i);
+                    playClickSound();
                     break;
                 }
             }
@@ -853,6 +868,7 @@ function onClick(e)
             if(isCurrentTurn() && mouseInteract(shop[i]))
             {
                 purchase(shop[i]);
+                playClickSound();
                 break;
             }
         }
@@ -934,6 +950,14 @@ function onMouseUp(e)
     }
 }
 
+function playClickSound()
+{
+    if(!soundOn) return;
+    
+    audio.click.currentTime = 0;
+    audio.click.play();
+}
+
 // main ////////////////////////////////////////////////////////////////
 
 export function init()
@@ -960,7 +984,6 @@ export function init()
     currentTurn = 0;
     actionPoints = 0;
     skillUsed = false;
-    timeLeftForTurn = TIME_PER_TURN;
 
     day = 0;
     season = "";
@@ -1378,7 +1401,6 @@ function healVillager()
 {
     let villager = infoSelected;
     villager.sick = false;
-    villager.labelColor = "white";
 
     useAction(ACTION_COST.HEAL_VILLAGER);
 
@@ -1649,16 +1671,15 @@ function refreshSkillButton()
 
 // drawing ////////////////////////////////////////////////////////////////
 
-function getTextColor(text, def)
+function getTextColor(text)
 {
     switch(text)
     {
-        case "water":
-        case "farming":
-        case "education":
-        case "housing":
-        case "power":
-            return facilities[text].labelColor;
+        case "water":       return "#33CCFF";
+        case "farming":     return "#00CC33";
+        case "education":   return "#FFCC66";
+        case "housing":     return "#FF6666";
+        case "power":       return "#FFFF00";
 
         case "most eff:":
         case "most fav:":
@@ -1668,15 +1689,15 @@ function getTextColor(text, def)
         case "least fav:":
             return "mediumpurple";
 
-        case "healthy":
+        case "immune":
             if(selectedInfoType("villager"))
-                return infoSelected.immune ? "aqua" : def;
+                return infoSelected.immune ? "aqua" : null;
 
         case "(none)":
             return "gray";
 
         default:
-            return def;
+            return null;
     }
 }
 
@@ -1686,7 +1707,15 @@ function drawLabel()
 
     let obj = labelSelected;
 
-    drawTooltip(obj.interactBox, obj.label, obj.labelColor);
+    let labelColor = "white";
+
+    if(obj.infoType == "facility")
+        labelColor = getTextColor(obj.label);
+
+    if(obj.infoType == "villager")
+        labelColor = obj.sick ? "rgb(0,191,0)" : "white";
+
+    drawTooltip(obj.interactBox, obj.label, labelColor);
 }
 
 function drawItemLabel(interactBox, item)
@@ -2083,12 +2112,6 @@ function drawTitleBar()
     ctx.fillStyle = "black";
     ctx.strokeText(currentTurnText, x, y);
     ctx.fillText(currentTurnText, x, y);
-
-    if(timerOn)
-    {
-        ctx.strokeText(Math.ceil(timeLeftForTurn / 60), x, y + 16*SCALE);
-        ctx.fillText(Math.ceil(timeLeftForTurn / 60), x, y + 16*SCALE);
-    }
     
     ctx.textAlign = "right";
     let fleeText = "💨".repeat(Math.max(Math.min(maxVillagers - villagers.length, 4), 0));
@@ -2143,7 +2166,8 @@ function drawInfoPanel()
             ];
 
             let textRight = [
-                villager.sick == true ? "sick" : "healthy",
+                villager.sick ? "sick" :
+                    villager.immune ? "immune" : "healthy",
                 (role == "sociologist" || npcPresent["sociologist"] ? villager.happiness : "?") + " / 100",
                 villager.hunger + " / 5",
                 villager.mostEffectiveTask,
@@ -2156,17 +2180,17 @@ function drawInfoPanel()
             // ctx.fillStyle = "white";
             for(let i = 0; i < textLeft.length; i++)
             {
-                ctx.fillStyle = getTextColor(textLeft[i], "white");
+                ctx.fillStyle = getTextColor(textLeft[i]) || "white";
                 ctx.textAlign = "left";
                 ctx.fillText(textLeft[i], 16 * SCALE, 16 * (i * 0.75 + 8) * SCALE);
 
-                ctx.fillStyle = getTextColor(textRight[i], "white");
+                ctx.fillStyle = getTextColor(textRight[i]) || "white";
                 ctx.textAlign = "right";
                 ctx.fillText(textRight[i], 16 * 7 * SCALE, 16 * (i * 0.75 + 8) * SCALE);
             }
 
             ctx.textAlign = "right";
-            ctx.fillStyle = getTextColor(villager.currentTask, "gray");
+            ctx.fillStyle = getTextColor(villager.currentTask) || "gray";
             ctx.fillText(villager.currentTask ? villager.currentTask : "(none)", 16 * 7 * SCALE, 16*14.5*SCALE);
             ctx.textAlign = "left";
             ctx.fillStyle = "white";
@@ -2662,6 +2686,10 @@ function drawShop()
         {
             ctx.fillStyle = "lightgray";
             ctx.fillRect(shop[i].interactBox.x*SCALE, shop[i].interactBox.y*SCALE, shop[i].interactBox.width*SCALE, shop[i].interactBox.height*SCALE);
+
+            // draw shop item description
+            ctx.fillStyle = "black";
+            ctx.fillText(shop[i].description, 16*16*SCALE, 16*7.5*SCALE);
         }
 
         ctx.strokeStyle = "gray";
@@ -2773,12 +2801,6 @@ export function draw()
     
 
     DayNotification.draw();
-
-    if(timerOn && timeLeftForTurn > 0)
-        timeLeftForTurn--;
-
-    if(isCurrentTurn() && timeLeftForTurn == 0)
-        endTurn();
 
 
     if(sm.currentScene == sm.SCENE.game)
