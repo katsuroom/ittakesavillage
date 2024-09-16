@@ -15,6 +15,7 @@ import { NotificationArrival } from "../src/NotificationArrival.js";
 import { NotificationFlee } from "../src/NotificationFlee.js";
 import { NotificationQuest } from "../src/NotificationQuest.js";
 import { DayNotification } from "../src/DayNotification.js";
+import { ToolTip } from "../src/ToolTip.js";
 
 
 // game variables ////////////////////////////////////////////////////////////////
@@ -160,6 +161,13 @@ const buttons = {
     sellItem: new Button(27*16, 7.25*16, 4*16, 1.5*16, "green", "sell"),
     upgradeFacility: new Button(1*16, 19.5*16, 6*16, 1.5*16, "red", "upgrade")
 };
+
+const toolTips = {
+    skill: new ToolTip(buttons.skill.interactBox.x + buttons.skill.interactBox.width, buttons.skill.interactBox.y, 4),
+    shop: new ToolTip(buttons.shop.interactBox.x + buttons.shop.interactBox.width, buttons.shop.interactBox.y, 4),
+
+    event: new ToolTip(16*35 + 16*6, 16*7, 4),
+}
 
 // socket messages ////////////////////////////////////////////////////////////////
 
@@ -2769,13 +2777,31 @@ function drawNotification()
     }
 }
 
+function drawToolTipIcons(){
+    drawToolTipIcon(toolTips.skill);
+    if(mouseInteract(toolTips.skill)){
+        drawTooltip(toolTips.skill.interactBox, "This is skill", "magenta")
+    }
+
+    drawToolTipIcon(toolTips.shop);
+    if(mouseInteract(toolTips.shop)){
+        drawTooltip(toolTips.shop.interactBox, "This is shop", "magenta")
+    }
+
+    drawToolTipIcon(toolTips.event)
+    if(mouseInteract(toolTips.event)){
+        console.log("event tooltip")
+        drawTooltip(toolTips.event.interactBox, "This is an event", "magenta")
+    }
+}
+
 export function draw()
 {
     labelSelected = null;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(img.background, 0, 0, img.background.width * SCALE, img.background.height * SCALE);
-    
+
     drawFacilities();
     drawFarmland();
     drawTrees();
@@ -2798,7 +2824,7 @@ export function draw()
     drawHeldItemStack();
     drawNotification();
 
-    
+    drawToolTipIcons();
 
     DayNotification.draw();
 

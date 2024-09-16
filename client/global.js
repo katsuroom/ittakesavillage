@@ -51,6 +51,15 @@ export function mouseInteract(obj)
     return true;
 }
 
+export function drawToolTipIcon(toolTip){
+    ctx.beginPath();
+    ctx.fillStyle = "#ffffff";
+    ctx.moveTo((toolTip.interactBox.x) * SCALE, toolTip.interactBox.y * SCALE);
+    ctx.arc((toolTip.interactBox.x) * SCALE, toolTip.interactBox.y * SCALE, toolTip.interactBox.radius * SCALE, 0, 2 * Math.PI);
+    ctx.stroke();
+    ctx.fill();
+}
+
 export function drawButton(button)
 {
     ctx.fillStyle = button.colorA;
