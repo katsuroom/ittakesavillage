@@ -1771,23 +1771,62 @@ function drawItemLabel(interactBox, item)
     }
 }
 
-function drawTooltip(interactBox, text, color)
+function drawTooltip(interactBox, text, color, modifyX, modifyY)
 {
+    if(modifyX == undefined) modifyX = 0;
+    if(modifyY == undefined) modifyY = 0;
     ctx.font = "16px Kenney Mini Square";
+
+    // break up the text if it's too long
+    const words = text.split(" ");
+    const lines = [''];
+    const maxLineWidth = 150; 
+    let lineNum = 0;
+
+    for(let i =0; i < words.length; i++){
+        if(ctx.measureText(lines[lineNum] + words[i]).width <= maxLineWidth){
+            lines[lineNum] += words[i] + ' ';
+        }else{
+            lineNum++;
+            lines[lineNum] = '';
+            i--;
+        }
+    }
+
+    // find the longest line
+    let textWidth = lines.reduce((maxWidth, line) => {
+        const lineWidth = ctx.measureText(line).width;
+        return Math.max(maxWidth, lineWidth);
+    },0);
+
     let textRect = ctx.measureText(text);
-    let textWidth = textRect.width;
-    let textHeight = textRect.fontBoundingBoxAscent + textRect.fontBoundingBoxDescent;
+    let lineHeight = textRect.fontBoundingBoxAscent + textRect.fontBoundingBoxDescent;
+    let textHeight = (numLines) => numLines * lineHeight;
+
     let padding = 8;
 
     ctx.fillStyle = "black";
+
+    // build the size of the background
+    const x = (interactBox.x + interactBox.width/2) * SCALE - textWidth/2 - padding;
+    const y = (interactBox.y * SCALE) - 32 - padding/2 - textHeight(lines.length-1);
+    const width = textWidth + 2 * padding;
+    const height = textHeight(lines.length) + padding;
+
     ctx.fillRect(
-        (interactBox.x + interactBox.width/2) * SCALE - textWidth/2 - padding,
-        (interactBox.y * SCALE) - 32 - padding/2,
-        textWidth + 2 * padding,
-        textHeight + padding);
+        x + modifyX,
+        y + modifyY,
+        width,
+        height);
 
     ctx.fillStyle = color;
-    ctx.fillText(text, (interactBox.x + interactBox.width/2) * SCALE - textRect.width/2, (interactBox.y * SCALE) - 32);
+
+    // write text line by line
+    for(let i =0; i< lines.length; i++){
+        ctx.fillText(lines[i], 
+            (interactBox.x + interactBox.width/2) * SCALE - textWidth/2 + modifyX, 
+            (interactBox.y * SCALE) + (i * lineHeight) - 32 + modifyY - textHeight(lines.length - 1));
+    }
 }
 
 function drawTooltips()
@@ -2780,18 +2819,17 @@ function drawNotification()
 function drawToolTipIcons(){
     drawToolTipIcon(toolTips.skill);
     if(mouseInteract(toolTips.skill)){
-        drawTooltip(toolTips.skill.interactBox, "This is skill", "magenta")
+        drawTooltip(toolTips.skill.interactBox, "Skill button will upgrade your skills depending on your role. Make your skills more powerful!", "magenta",-75);
     }
 
     drawToolTipIcon(toolTips.shop);
     if(mouseInteract(toolTips.shop)){
-        drawTooltip(toolTips.shop.interactBox, "This is shop", "magenta")
+        drawTooltip(toolTips.shop.interactBox, "Hire new NPCs with different roles to help the village progress faster!", "magenta");
     }
 
     drawToolTipIcon(toolTips.event)
     if(mouseInteract(toolTips.event)){
-        console.log("event tooltip")
-        drawTooltip(toolTips.event.interactBox, "This is an event", "magenta")
+        drawTooltip(toolTips.event.interactBox, "This is an event", "magenta");
     }
 }
 
