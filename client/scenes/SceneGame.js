@@ -1771,11 +1771,11 @@ function drawItemLabel(interactBox, item)
     }
 }
 
-function drawTooltip(interactBox, text, color, modifyX, modifyY)
+function drawTooltip(interactBox, text, color,textFont, modifyX, modifyY)
 {
     if(modifyX == undefined) modifyX = 0;
     if(modifyY == undefined) modifyY = 0;
-    ctx.font = "16px Kenney Mini Square";
+    ctx.font = textFont ? textFont : "16px Kenney Mini Square";
 
     // break up the text if it's too long
     const words = text.split(" ");
@@ -2819,17 +2819,17 @@ function drawNotification()
 function drawToolTipIcons(){
     drawToolTipIcon(toolTips.skill);
     if(mouseInteract(toolTips.skill)){
-        drawTooltip(toolTips.skill.interactBox, "Skill button will upgrade your skills depending on your role. Make your skills more powerful!", "magenta",-75);
+        drawTooltip(toolTips.skill.interactBox, "Skill button will upgrade your skills depending on your role. Make your skills more powerful!", "white","18px Courier New", -75);
     }
 
     drawToolTipIcon(toolTips.shop);
     if(mouseInteract(toolTips.shop)){
-        drawTooltip(toolTips.shop.interactBox, "Hire new NPCs with different roles to help the village progress faster!", "magenta");
+        drawTooltip(toolTips.shop.interactBox, "Hire new NPCs with different roles to help the village progress faster!", "white", "18px Courier New");
     }
 
     drawToolTipIcon(toolTips.event)
     if(mouseInteract(toolTips.event)){
-        drawTooltip(toolTips.event.interactBox, "This is an event", "magenta");
+        drawTooltip(toolTips.event.interactBox, "This is an event", "white","18px Courier New", -75);
     }
 }
 
