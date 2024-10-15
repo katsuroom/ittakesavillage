@@ -41,6 +41,7 @@ export const img = {
     rain0:              loadImage("assets/art/rain0.png"),
     rain1:              loadImage("assets/art/rain1.png"),
     heart:              loadImage("assets/art/heart.png"),
+    inventory:          loadImage("assets/art/inventory.png"), // size is 25px x 25px
 
     // items
     "cucumber":         loadImage("assets/art/cucumber.png"),

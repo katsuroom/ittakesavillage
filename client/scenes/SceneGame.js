@@ -124,6 +124,7 @@ let windowStack = ["main"];         // stack of open windows
 
 let notifications = [];             // list of notification cards
 let currentNotif = null;            // currently displayed notification
+let eventDescription = ""           // description of the current event
 
 // let notificationBox = {x: 16*8, y: 16*8, width: 16*26, height: 16*6}
 let notificationBox = {x: 16*34, y: 16*8, width: 0, height: 16*6}
@@ -146,7 +147,7 @@ const buttons = {
 
     music: new Button(35*16, 14.5*16, 16*1.5, 16*1.5, "red", "🎵"),
     sound: new Button(36.5*16, 14.5*16, 16*1.5, 16*1.5, "red", "🔊"),
-    inventory: new Button(38*16, 14.5*16, 16*1.5, 16*1.5, "red", "🎁"),
+    inventory: new Button(38*16, 14.5*16, 16*1.5, 16*1.5, "red", img.inventory),
     help: new Button(39.5*16, 14.5*16, 16*1.5, 16*1.5, "red", "❔"),
 
     assignVillager: new Button(1*16, 17.75*16, 6*16, 1.5*16, "orange", "assign"),
@@ -165,7 +166,7 @@ const buttons = {
 const toolTips = {
     skill: new ToolTip(buttons.skill.interactBox.x + buttons.skill.interactBox.width, buttons.skill.interactBox.y, 4),
     shop: new ToolTip(buttons.shop.interactBox.x + buttons.shop.interactBox.width, buttons.shop.interactBox.y, 4),
-
+    inventory: new ToolTip(buttons.inventory.interactBox.x + buttons.inventory.interactBox.width, buttons.inventory.interactBox.y, 4),
     event: new ToolTip(16*35 + 16*6, 16*7, 4),
 }
 
@@ -280,6 +281,7 @@ socket.on("event", (_event, _nextEvent) => {
     if(!event || event.duration == 1)
     {
         notifications.push(new NotificationEvent(_event, img["event_" + _event.id]));
+        eventDescription = _event.description
         triggerNotifications();
 
         cloudShadows = [];
@@ -2819,17 +2821,22 @@ function drawNotification()
 function drawToolTipIcons(){
     drawToolTipIcon(toolTips.skill);
     if(mouseInteract(toolTips.skill)){
-        drawTooltip(toolTips.skill.interactBox, "Skill button will upgrade your skills depending on your role. Make your skills more powerful!", "white","18px Courier New", -75);
+        drawTooltip(toolTips.skill.interactBox, "Apply special skill to this turn", "white","15px Courier New", -75);
     }
 
     drawToolTipIcon(toolTips.shop);
     if(mouseInteract(toolTips.shop)){
-        drawTooltip(toolTips.shop.interactBox, "Hire new NPCs with different roles to help the village progress faster!", "white", "18px Courier New");
+        drawTooltip(toolTips.shop.interactBox, "Hire additional experts, buy seeds (Farmer), and buy steel (Engineer)", "white", "15px Courier New");
     }
 
     drawToolTipIcon(toolTips.event)
     if(mouseInteract(toolTips.event)){
-        drawTooltip(toolTips.event.interactBox, "This is an event", "white","18px Courier New", -75);
+        drawTooltip(toolTips.event.interactBox, eventDescription, "white","15px Courier New", -75);
+    }
+
+    drawToolTipIcon(toolTips.inventory)
+    if(mouseInteract(toolTips.inventory)){
+        drawTooltip(toolTips.inventory.interactBox, "Inventory items for feeding villagers, planting seeds, and fixing facilities", "white", "15px Courier New");
     }
 }
 

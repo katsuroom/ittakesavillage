@@ -89,9 +89,15 @@ export function drawButton(button)
     ctx.fillStyle = "white";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(button.text,
-        (button.interactBox.x + button.interactBox.width / 2) * SCALE,
-        (button.interactBox.y + button.interactBox.height / 2 - 3) * SCALE);
+    if(typeof button.text === "object"){
+        ctx.drawImage(button.text,
+            (button.interactBox.x + button.interactBox.width / 4) * SCALE,
+            (button.interactBox.y + button.interactBox.height / 4) * SCALE);
+    }else{
+        ctx.fillText(button.text,
+            (button.interactBox.x + button.interactBox.width / 2) * SCALE,
+            (button.interactBox.y + button.interactBox.height / 2 - 3) * SCALE);
+    }
 
     if(button.enabled && mouseInteract(button))
     {
