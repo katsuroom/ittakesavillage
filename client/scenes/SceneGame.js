@@ -2820,21 +2820,23 @@ function drawNotification()
 
 function drawToolTipIcons(){
     drawToolTipIcon(toolTips.skill);
+    drawToolTipIcon(toolTips.shop);
+    drawToolTipIcon(toolTips.event)
+    drawToolTipIcon(toolTips.inventory)
+    
     if(mouseInteract(toolTips.skill)){
         drawTooltip(toolTips.skill.interactBox, "Apply special skill to this turn", "white","15px Courier New", -75);
     }
-
-    drawToolTipIcon(toolTips.shop);
+    
     if(mouseInteract(toolTips.shop)){
         drawTooltip(toolTips.shop.interactBox, "Hire additional experts, buy seeds (Farmer), and buy steel (Engineer)", "white", "15px Courier New");
     }
 
-    drawToolTipIcon(toolTips.event)
+
     if(mouseInteract(toolTips.event)){
         drawTooltip(toolTips.event.interactBox, eventDescription, "white","15px Courier New", -75);
     }
 
-    drawToolTipIcon(toolTips.inventory)
     if(mouseInteract(toolTips.inventory)){
         drawTooltip(toolTips.inventory.interactBox, "Inventory items for feeding villagers, planting seeds, and fixing facilities", "white", "15px Courier New");
     }
