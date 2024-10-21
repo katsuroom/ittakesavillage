@@ -2866,6 +2866,75 @@ function drawRoleDescription(){
     ctx.fillText("Role description", 16*11*SCALE, 16*7.5*SCALE);
 
     ctx.font = "16px o mono";
+
+    switch(role){
+        case 'doctor':
+            ctx.fillStyle = "black";
+            ctx.font = "20px o mono";
+            ctx.fillText("Doctor", 16*11*SCALE, 16*10*SCALE);
+            ctx.fillText("- Can heal 2 sick villagers per day for free", 16*11*SCALE, 16*11*SCALE);
+            ctx.fillText("- Number of free heals increases per level of", 16*11*SCALE, 16*12*SCALE);
+            ctx.fillText("  housing", 16*11*SCALE, 16*13*SCALE);
+            ctx.fillText("- Other players receive 1 free heal per day", 16*11*SCALE, 16*14*SCALE);
+            ctx.fillStyle = "cornflowerblue";
+            ctx.fillText("- Skill: makes a villager immune from sickness", 16*11*SCALE, 16*15*SCALE);
+            ctx.fillText("  until the next mutation", 16*11*SCALE, 16*16*SCALE);
+            break;
+        case 'chief':
+            ctx.fillStyle = "black";
+            ctx.font = "20px o mono";
+            ctx.fillText("Chief (required)", 16*11*SCALE, 16*10*SCALE);
+            ctx.fillText("- The only role who can assign villagers to", 16*11*SCALE, 16*11*SCALE);
+            ctx.fillText("  facilities", 16*11*SCALE, 16*12*SCALE);
+            ctx.fillStyle = "cornflowerblue";
+            ctx.fillText("- Skill: village reputation increases by 1", 16*11*SCALE, 16*13*SCALE);
+            ctx.fillText("- If reputation reaches 3, a new villager joins the", 16*11*SCALE, 16*14*SCALE);
+            ctx.fillText("  village", 16*11*SCALE, 16*15*SCALE);
+            break;
+        case 'scientist':
+            ctx.fillStyle = "black";
+            ctx.font = "20px o mono";
+            ctx.fillText("Scientist", 16*11*SCALE, 16*10*SCALE);
+            ctx.fillText("- Makes apple trees available", 16*11*SCALE, 16*11*SCALE);
+            ctx.fillStyle = "cornflowerblue";
+            ctx.fillText("- Skill: predicts if the next event is good or bad", 16*11*SCALE, 16*12*SCALE);
+            break;
+        case 'sociologist':
+            ctx.fillStyle = "black";
+            ctx.font = "20px o mono";
+            ctx.fillText("Sociologist", 16*11*SCALE, 16*10*SCALE);
+            ctx.fillText("- Can view villagers' exact happiness levels", 16*11*SCALE, 16*11*SCALE);
+            ctx.fillText(" (hotkey = shift)", 16*11*SCALE, 16*12*SCALE)
+            ctx.fillStyle = "cornflowerblue";
+            ctx.fillText("- Skill: eliminates a villager's least effective", 16*11*SCALE, 16*13*SCALE);
+            ctx.fillText("  and least favorite task until the next mutation", 16*11*SCALE, 16*14*SCALE);
+            break;
+        case 'farmer':
+            ctx.fillStyle = "black";
+            ctx.font = "20px o mono";
+            ctx.fillText("Farmer", 16*11*SCALE, 16*10*SCALE);
+            ctx.fillText("- Seeds planted by the farmer grow faster by 1 day", 16*11*SCALE, 16*11*SCALE);
+            ctx.fillText("- Can purchase seeds from the shop", 16*11*SCALE, 16*12*SCALE);
+            ctx.fillStyle = "cornflowerblue";
+            ctx.fillText("- Skill: turns a piece of farmland into fertilized", 16*11*SCALE, 16*13*SCALE);
+            ctx.fillText("  farmland", 16*11*SCALE, 16*14*SCALE)
+            ctx.fillText("- Fertilized farmland produce more crops than", 16*11*SCALE, 16*15*SCALE);
+            ctx.fillText("  normal", 16*11*SCALE, 16*16*SCALE);
+            break;
+        case 'engineer':
+            ctx.fillStyle = "black";
+            ctx.font = "20px o mono";
+            ctx.fillText("Engineer", 16*11*SCALE, 16*10*SCALE);
+            ctx.fillText("- Can upgrade materials with money, success chance", 16*11*SCALE, 16*11*SCALE);
+            ctx.fillText("  increases with education level", 16*11*SCALE, 16*12*SCALE);
+            ctx.fillText("- Upgraded materials increase more progress when", 16*11*SCALE, 16*13*SCALE);
+            ctx.fillText("  used on facilities", 16*11*SCALE, 16*14*SCALE);
+            ctx.fillText("- Can purchase steel from the shop", 16*11*SCALE, 16*15*SCALE);
+            ctx.fillStyle = "cornflowerblue";
+            ctx.fillText("- Skill: converts every brick in inventory into", 16*11*SCALE, 16*16*SCALE);
+            ctx.fillText("  steel", 16*11*SCALE, 16*17*SCALE);
+            break;
+    }
 }
 
 function drawToolTipIcons(){

@@ -200,8 +200,8 @@ export function draw()
             ctx.fillText("Sociologist", 3*16*SCALE, 14*16*SCALE);
             ctx.fillText("- Can view villagers' exact happiness levels (hotkey = shift)", 3*16*SCALE, 15*16*SCALE);
             ctx.fillStyle = "cornflowerblue";
-            ctx.fillText("- Skill: eliminates a villager's least effective and least favorite task", 3*16*SCALE, 16*16*SCALE);
-            ctx.fillText("  Until the next mutation", 3*16*SCALE, 17*16*SCALE);
+            ctx.fillText("- Skill: eliminates a villager's least effective and least favorite", 3*16*SCALE, 16*16*SCALE);
+            ctx.fillText("  task until the next mutation", 3*16*SCALE, 17*16*SCALE);
             break;
         case mouseInteract(buttons.farmer):
             ctx.fillStyle = "black";
@@ -217,11 +217,12 @@ export function draw()
             ctx.fillStyle = "black";
             ctx.font = "20px o mono";
             ctx.fillText("Engineer", 3*16*SCALE, 14*16*SCALE);
-            ctx.fillText("- Can upgrade materials with money, success chance increases with education level", 3*16*SCALE, 15*16*SCALE);
-            ctx.fillText("- Upgraded materials increase more progress when used on facilities", 3*16*SCALE, 16*16*SCALE);
-            ctx.fillText("- Can purchase steel from the shop", 3*16*SCALE, 17*16*SCALE);
+            ctx.fillText("- Can upgrade materials with money, success chance increases with", 3*16*SCALE, 15*16*SCALE);
+            ctx.fillText("  education level", 3*16*SCALE, 16*16*SCALE);
+            ctx.fillText("- Upgraded materials increase more progress when used on facilities", 3*16*SCALE, 17*16*SCALE);
+            ctx.fillText("- Can purchase steel from the shop", 3*16*SCALE, 18*16*SCALE);
             ctx.fillStyle = "cornflowerblue";
-            ctx.fillText("- Skill: converts every brick in inventory into steel", 3*16*SCALE, 18*16*SCALE);
+            ctx.fillText("- Skill: converts every brick in inventory into steel", 3*16*SCALE, 19*16*SCALE);
             break;
 
         default:
