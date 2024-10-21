@@ -537,6 +537,14 @@ function onClick(e)
         playClickSound();
     }
 
+    if(buttonClick(buttons.help))
+    {
+        if(getActiveWindow() == 'role')
+            closeRole()
+        else
+            openRole();
+        playClickSound();
+    }
 
     if(selectedInfoType("farmland") && buttonClick(buttons.harvestCrop))
     {
@@ -989,8 +997,6 @@ export function init()
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("keyup", onKeyUp);
 
-    buttons.help.enabled = false;
-
     currentTurn = 0;
     actionPoints = 0;
     skillUsed = false;
@@ -1123,6 +1129,7 @@ function openInventory()
     if(getActiveWindow() != "inventory")
     {
         closeShop();
+        closeRole();
         windowStack.push("inventory");
         heldItemStack = null;
         assigningVillager = null;
@@ -1148,11 +1155,37 @@ function closeInventory()
     }
 }
 
+function openRole()
+{
+    if(getActiveWindow() != "role")
+    {
+        closeShop();
+        closeInventory();
+        windowStack.push("role");
+        heldItemStack = null;
+        assigningVillager = null;
+
+        buttons.assignVillager.enabled = false;
+        buttons.healVillager.enabled = false;
+    }
+}
+
+function closeRole()
+{
+    if(getActiveWindow() == "role")
+    {
+        windowStack.pop();
+        refreshAssignButton();
+        refreshHealButton();
+    }
+}
+
 function openShop()
 {
     if(getActiveWindow() != "shop")
     {
         closeInventory();
+        closeRole();
         windowStack.push("shop");
         heldItemStack = null;
         assigningVillager = null;
@@ -2818,6 +2851,23 @@ function drawNotification()
     }
 }
 
+function drawRoleDescription(){
+    if(getActiveWindow() != "role") return;
+    ctx.save();
+
+    ctx.fillStyle = "white";
+    ctx.fillRect(16*10*SCALE, 16*7*SCALE, 16*22*SCALE, 16*13*SCALE);
+    ctx.strokeStyle = "black";
+    ctx.lineWidth = 4;
+    ctx.strokeRect(16*10*SCALE, 16*7*SCALE, 16*22*SCALE, 16*13*SCALE);
+
+    ctx.font = "24px o mono";
+    ctx.fillStyle = "black";
+    ctx.fillText("Role description", 16*11*SCALE, 16*7.5*SCALE);
+
+    ctx.font = "16px o mono";
+}
+
 function drawToolTipIcons(){
     drawToolTipIcon(toolTips.skill);
     drawToolTipIcon(toolTips.shop);
@@ -2825,20 +2875,20 @@ function drawToolTipIcons(){
     drawToolTipIcon(toolTips.inventory)
     
     if(mouseInteract(toolTips.skill)){
-        drawTooltip(toolTips.skill.interactBox, "Apply special skill to this turn", "white","15px Courier New", -75);
+        drawTooltip(toolTips.skill.interactBox, "Apply special skill to this turn", "white","18px o mono", -75);
     }
     
     if(mouseInteract(toolTips.shop)){
-        drawTooltip(toolTips.shop.interactBox, "Hire additional experts, buy seeds (Farmer), and buy steel (Engineer)", "white", "15px Courier New");
+        drawTooltip(toolTips.shop.interactBox, "Hire additional experts, buy seeds (Farmer), and buy steel (Engineer)", "white", "18px o mono");
     }
 
 
     if(mouseInteract(toolTips.event)){
-        drawTooltip(toolTips.event.interactBox, eventDescription, "white","15px Courier New", -75);
+        drawTooltip(toolTips.event.interactBox, eventDescription, "white","18px o mono", -75);
     }
 
     if(mouseInteract(toolTips.inventory)){
-        drawTooltip(toolTips.inventory.interactBox, "Inventory items for feeding villagers, planting seeds, and fixing facilities", "white", "15px Courier New");
+        drawTooltip(toolTips.inventory.interactBox, "Inventory items for feeding villagers, planting seeds, and fixing facilities", "white", "18px o mono");
     }
 }
 
@@ -2865,6 +2915,7 @@ export function draw()
     drawLoot();
     drawInventory();
     drawShop();
+    drawRoleDescription();
 
     drawTooltips();
     drawLabel();

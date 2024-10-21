@@ -147,72 +147,81 @@ export function draw()
     {
         case mouseInteract(buttons.easy):
             ctx.fillStyle = "purple";
-            ctx.fillText("easy difficulty", 3*16*SCALE, 14*16*SCALE);
+            ctx.font = "20px o mono";
+            ctx.fillText("Easy difficulty", 3*16*SCALE, 14*16*SCALE);
             ctx.fillText("8 villagers", 3*16*SCALE, 15*16*SCALE);
-            ctx.fillText("standard event probabilities", 3*16*SCALE, 16*16*SCALE);
+            ctx.fillText("Standard event probabilities", 3*16*SCALE, 16*16*SCALE);
             break;
         case mouseInteract(buttons.normal):
             ctx.fillStyle = "purple";
-            ctx.fillText("normal difficulty", 3*16*SCALE, 14*16*SCALE);
+            ctx.font = "20px o mono";
+            ctx.fillText("Normal difficulty", 3*16*SCALE, 14*16*SCALE);
             ctx.fillText("10 villagers", 3*16*SCALE, 15*16*SCALE);
-            ctx.fillText("standard event probabilities", 3*16*SCALE, 16*16*SCALE);
+            ctx.fillText("Standard event probabilities", 3*16*SCALE, 16*16*SCALE);
             break;
         case mouseInteract(buttons.hard):
             ctx.fillStyle = "purple";
-            ctx.fillText("normal difficulty", 3*16*SCALE, 14*16*SCALE);
+            ctx.font = "20px o mono";
+            ctx.fillText("Normal difficulty", 3*16*SCALE, 14*16*SCALE);
             ctx.fillText("12 villagers", 3*16*SCALE, 15*16*SCALE);
-            ctx.fillText("bad events only", 3*16*SCALE, 16*16*SCALE);
+            ctx.fillText("Bad events only", 3*16*SCALE, 16*16*SCALE);
             break;
 
         case mouseInteract(buttons.chief):
             ctx.fillStyle = "black";
-            ctx.fillText("chief (required)", 3*16*SCALE, 14*16*SCALE);
-            ctx.fillText("- the only role who can assign villagers to facilities", 3*16*SCALE, 15*16*SCALE);
+            ctx.font = "20px o mono";
+            ctx.fillText("Chief (required)", 3*16*SCALE, 14*16*SCALE);
+            ctx.fillText("- The only role who can assign villagers to facilities", 3*16*SCALE, 15*16*SCALE);
             ctx.fillStyle = "cornflowerblue";
-            ctx.fillText("- skill: village reputation increases by 1", 3*16*SCALE, 16*16*SCALE);
-            ctx.fillText("- if reputation reaches 3, a new villager joins the village", 3*16*SCALE, 17*16*SCALE);
+            ctx.fillText("- Skill: village reputation increases by 1", 3*16*SCALE, 16*16*SCALE);
+            ctx.fillText("- If reputation reaches 3, a new villager joins the village", 3*16*SCALE, 17*16*SCALE);
             break;
         case mouseInteract(buttons.doctor):
             ctx.fillStyle = "black";
-            ctx.fillText("doctor", 3*16*SCALE, 14*16*SCALE);
-            ctx.fillText("- can heal 2 sick villagers per day for free", 3*16*SCALE, 15*16*SCALE);
-            ctx.fillText("- number of free heals increases per level of housing", 3*16*SCALE, 16*16*SCALE);
-            ctx.fillText("- other players receive 1 free heal per day", 3*16*SCALE, 17*16*SCALE);
+            ctx.font = "20px o mono";
+            ctx.fillText("Doctor", 3*16*SCALE, 14*16*SCALE);
+            ctx.fillText("- Can heal 2 sick villagers per day for free", 3*16*SCALE, 15*16*SCALE);
+            ctx.fillText("- Number of free heals increases per level of housing", 3*16*SCALE, 16*16*SCALE);
+            ctx.fillText("- Other players receive 1 free heal per day", 3*16*SCALE, 17*16*SCALE);
             ctx.fillStyle = "cornflowerblue";
-            ctx.fillText("- skill: makes a villager immune from sickness until the next mutation", 3*16*SCALE, 18*16*SCALE);
+            ctx.fillText("- Skill: makes a villager immune from sickness until the next mutation", 3*16*SCALE, 18*16*SCALE);
             break;
         case mouseInteract(buttons.scientist):
             ctx.fillStyle = "black";
-            ctx.fillText("scientist", 3*16*SCALE, 14*16*SCALE);
-            ctx.fillText("- makes apple trees available", 3*16*SCALE, 15*16*SCALE);
+            ctx.font = "20px o mono";
+            ctx.fillText("Scientist", 3*16*SCALE, 14*16*SCALE);
+            ctx.fillText("- Makes apple trees available", 3*16*SCALE, 15*16*SCALE);
             ctx.fillStyle = "cornflowerblue";
-            ctx.fillText("- skill: predicts if the next event is good or bad", 3*16*SCALE, 16*16*SCALE);
+            ctx.fillText("- Skill: predicts if the next event is good or bad", 3*16*SCALE, 16*16*SCALE);
             break;
         case mouseInteract(buttons.sociologist):
             ctx.fillStyle = "black";
-            ctx.fillText("sociologist", 3*16*SCALE, 14*16*SCALE);
-            ctx.fillText("- can view villagers' exact happiness levels (hotkey = shift)", 3*16*SCALE, 15*16*SCALE);
+            ctx.font = "20px o mono";
+            ctx.fillText("Sociologist", 3*16*SCALE, 14*16*SCALE);
+            ctx.fillText("- Can view villagers' exact happiness levels (hotkey = shift)", 3*16*SCALE, 15*16*SCALE);
             ctx.fillStyle = "cornflowerblue";
-            ctx.fillText("- skill: eliminates a villager's least effective and least favorite task", 3*16*SCALE, 16*16*SCALE);
-            ctx.fillText("  until the next mutation", 3*16*SCALE, 17*16*SCALE);
+            ctx.fillText("- Skill: eliminates a villager's least effective and least favorite task", 3*16*SCALE, 16*16*SCALE);
+            ctx.fillText("  Until the next mutation", 3*16*SCALE, 17*16*SCALE);
             break;
         case mouseInteract(buttons.farmer):
             ctx.fillStyle = "black";
-            ctx.fillText("farmer", 3*16*SCALE, 14*16*SCALE);
-            ctx.fillText("- seeds planted by the farmer grow faster by 1 day", 3*16*SCALE, 15*16*SCALE);
-            ctx.fillText("- can purchase seeds from the shop", 3*16*SCALE, 16*16*SCALE);
+            ctx.font = "20px o mono";
+            ctx.fillText("Farmer", 3*16*SCALE, 14*16*SCALE);
+            ctx.fillText("- Seeds planted by the farmer grow faster by 1 day", 3*16*SCALE, 15*16*SCALE);
+            ctx.fillText("- Can purchase seeds from the shop", 3*16*SCALE, 16*16*SCALE);
             ctx.fillStyle = "cornflowerblue";
-            ctx.fillText("- skill: turns a piece of farmland into fertilized farmland", 3*16*SCALE, 17*16*SCALE);
-            ctx.fillText("- fertilized farmland produce more crops than normal", 3*16*SCALE, 18*16*SCALE);
+            ctx.fillText("- Skill: turns a piece of farmland into fertilized farmland", 3*16*SCALE, 17*16*SCALE);
+            ctx.fillText("- Fertilized farmland produce more crops than normal", 3*16*SCALE, 18*16*SCALE);
             break;
         case mouseInteract(buttons.engineer):
             ctx.fillStyle = "black";
-            ctx.fillText("engineer", 3*16*SCALE, 14*16*SCALE);
-            ctx.fillText("- can upgrade materials with money, success chance increases with education level", 3*16*SCALE, 15*16*SCALE);
-            ctx.fillText("- upgraded materials increase more progress when used on facilities", 3*16*SCALE, 16*16*SCALE);
-            ctx.fillText("- can purchase steel from the shop", 3*16*SCALE, 17*16*SCALE);
+            ctx.font = "20px o mono";
+            ctx.fillText("Engineer", 3*16*SCALE, 14*16*SCALE);
+            ctx.fillText("- Can upgrade materials with money, success chance increases with education level", 3*16*SCALE, 15*16*SCALE);
+            ctx.fillText("- Upgraded materials increase more progress when used on facilities", 3*16*SCALE, 16*16*SCALE);
+            ctx.fillText("- Can purchase steel from the shop", 3*16*SCALE, 17*16*SCALE);
             ctx.fillStyle = "cornflowerblue";
-            ctx.fillText("- skill: converts every brick in inventory into steel", 3*16*SCALE, 18*16*SCALE);
+            ctx.fillText("- Skill: converts every brick in inventory into steel", 3*16*SCALE, 18*16*SCALE);
             break;
 
         default:

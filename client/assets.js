@@ -88,5 +88,7 @@ audio.notification.volume = 0.25;
 audio.click.volume = 0.5;
 
 const font = {
-    miniSquare:         loadFont("Kenney Mini Square", "url(assets/fonts/Kenney%20Mini%20Square.ttf)")
+    miniSquare:         loadFont("Kenney Mini Square", "url(assets/fonts/Kenney%20Mini%20Square.ttf)"),
+    fsregulate:         loadFont("fs regulate", "url(assets/fonts/fs-regulate.ttf)"),
+    otonnokizakaMono:         loadFont("o mono", "url(assets/fonts/otonokizaka-mono-ii.ttf)")
 }
