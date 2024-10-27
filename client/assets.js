@@ -41,6 +41,7 @@ export const img = {
     rain0:              loadImage("assets/art/rain0.png"),
     rain1:              loadImage("assets/art/rain1.png"),
     heart:              loadImage("assets/art/heart.png"),
+    inventory:          loadImage("assets/art/inventory.png"), // size is 25px x 25px
 
     // items
     "cucumber":         loadImage("assets/art/cucumber.png"),
@@ -87,5 +88,7 @@ audio.notification.volume = 0.25;
 audio.click.volume = 0.5;
 
 const font = {
-    miniSquare:         loadFont("Kenney Mini Square", "url(assets/fonts/Kenney%20Mini%20Square.ttf)")
+    miniSquare:         loadFont("Kenney Mini Square", "url(assets/fonts/Kenney%20Mini%20Square.ttf)"),
+    fsregulate:         loadFont("fs regulate", "url(assets/fonts/fs-regulate.ttf)"),
+    otonnokizakaMono:         loadFont("o mono", "url(assets/fonts/otonokizaka-mono-ii.ttf)")
 }

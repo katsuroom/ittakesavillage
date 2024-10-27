@@ -51,6 +51,15 @@ export function mouseInteract(obj)
     return true;
 }
 
+export function drawToolTipIcon(toolTip){
+    ctx.beginPath();
+    ctx.fillStyle = "#ffffff";
+    ctx.moveTo((toolTip.interactBox.x) * SCALE, toolTip.interactBox.y * SCALE);
+    ctx.arc((toolTip.interactBox.x) * SCALE, toolTip.interactBox.y * SCALE, toolTip.interactBox.radius * SCALE, 0, 2 * Math.PI);
+    ctx.stroke();
+    ctx.fill();
+}
+
 export function drawButton(button)
 {
     ctx.fillStyle = button.colorA;
@@ -80,9 +89,15 @@ export function drawButton(button)
     ctx.fillStyle = "white";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(button.text,
-        (button.interactBox.x + button.interactBox.width / 2) * SCALE,
-        (button.interactBox.y + button.interactBox.height / 2 - 3) * SCALE);
+    if(typeof button.text === "object"){
+        ctx.drawImage(button.text,
+            (button.interactBox.x + button.interactBox.width / 4) * SCALE,
+            (button.interactBox.y + button.interactBox.height / 4) * SCALE);
+    }else{
+        ctx.fillText(button.text,
+            (button.interactBox.x + button.interactBox.width / 2) * SCALE,
+            (button.interactBox.y + button.interactBox.height / 2 - 3) * SCALE);
+    }
 
     if(button.enabled && mouseInteract(button))
     {

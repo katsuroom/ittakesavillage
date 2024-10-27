@@ -15,6 +15,7 @@ import { NotificationArrival } from "../src/NotificationArrival.js";
 import { NotificationFlee } from "../src/NotificationFlee.js";
 import { NotificationQuest } from "../src/NotificationQuest.js";
 import { DayNotification } from "../src/DayNotification.js";
+import { ToolTip } from "../src/ToolTip.js";
 
 
 // game variables ////////////////////////////////////////////////////////////////
@@ -123,6 +124,7 @@ let windowStack = ["main"];         // stack of open windows
 
 let notifications = [];             // list of notification cards
 let currentNotif = null;            // currently displayed notification
+let eventDescription = ""           // description of the current event
 
 // let notificationBox = {x: 16*8, y: 16*8, width: 16*26, height: 16*6}
 let notificationBox = {x: 16*34, y: 16*8, width: 0, height: 16*6}
@@ -145,7 +147,7 @@ const buttons = {
 
     music: new Button(35*16, 14.5*16, 16*1.5, 16*1.5, "red", "🎵"),
     sound: new Button(36.5*16, 14.5*16, 16*1.5, 16*1.5, "red", "🔊"),
-    inventory: new Button(38*16, 14.5*16, 16*1.5, 16*1.5, "red", "🎁"),
+    inventory: new Button(38*16, 14.5*16, 16*1.5, 16*1.5, "red", img.inventory),
     help: new Button(39.5*16, 14.5*16, 16*1.5, 16*1.5, "red", "❔"),
 
     assignVillager: new Button(1*16, 17.75*16, 6*16, 1.5*16, "orange", "assign"),
@@ -160,6 +162,13 @@ const buttons = {
     sellItem: new Button(27*16, 7.25*16, 4*16, 1.5*16, "green", "sell"),
     upgradeFacility: new Button(1*16, 19.5*16, 6*16, 1.5*16, "red", "upgrade")
 };
+
+const toolTips = {
+    skill: new ToolTip(buttons.skill.interactBox.x + buttons.skill.interactBox.width, buttons.skill.interactBox.y, 4),
+    shop: new ToolTip(buttons.shop.interactBox.x + buttons.shop.interactBox.width, buttons.shop.interactBox.y, 4),
+    inventory: new ToolTip(buttons.inventory.interactBox.x + buttons.inventory.interactBox.width, buttons.inventory.interactBox.y, 4),
+    event: new ToolTip(16*35 + 16*6, 16*7, 4),
+}
 
 // socket messages ////////////////////////////////////////////////////////////////
 
@@ -272,6 +281,7 @@ socket.on("event", (_event, _nextEvent) => {
     if(!event || event.duration == 1)
     {
         notifications.push(new NotificationEvent(_event, img["event_" + _event.id]));
+        eventDescription = _event.description
         triggerNotifications();
 
         cloudShadows = [];
@@ -527,6 +537,14 @@ function onClick(e)
         playClickSound();
     }
 
+    if(buttonClick(buttons.help))
+    {
+        if(getActiveWindow() == 'role')
+            closeRole()
+        else
+            openRole();
+        playClickSound();
+    }
 
     if(selectedInfoType("farmland") && buttonClick(buttons.harvestCrop))
     {
@@ -980,7 +998,6 @@ export function init()
     window.addEventListener("keyup", onKeyUp);
 
     buttons.help.enabled = true;
-
     currentTurn = 0;
     actionPoints = 0;
     skillUsed = false;
@@ -1113,6 +1130,7 @@ function openInventory()
     if(getActiveWindow() != "inventory")
     {
         closeShop();
+        closeRole();
         windowStack.push("inventory");
         heldItemStack = null;
         assigningVillager = null;
@@ -1138,11 +1156,37 @@ function closeInventory()
     }
 }
 
+function openRole()
+{
+    if(getActiveWindow() != "role")
+    {
+        closeShop();
+        closeInventory();
+        windowStack.push("role");
+        heldItemStack = null;
+        assigningVillager = null;
+
+        buttons.assignVillager.enabled = false;
+        buttons.healVillager.enabled = false;
+    }
+}
+
+function closeRole()
+{
+    if(getActiveWindow() == "role")
+    {
+        windowStack.pop();
+        refreshAssignButton();
+        refreshHealButton();
+    }
+}
+
 function openShop()
 {
     if(getActiveWindow() != "shop")
     {
         closeInventory();
+        closeRole();
         windowStack.push("shop");
         heldItemStack = null;
         assigningVillager = null;
@@ -1763,23 +1807,62 @@ function drawItemLabel(interactBox, item)
     }
 }
 
-function drawTooltip(interactBox, text, color)
+function drawTooltip(interactBox, text, color,textFont, modifyX, modifyY)
 {
-    ctx.font = "16px Kenney Mini Square";
+    if(modifyX == undefined) modifyX = 0;
+    if(modifyY == undefined) modifyY = 0;
+    ctx.font = textFont ? textFont : "16px Kenney Mini Square";
+
+    // break up the text if it's too long
+    const words = text.split(" ");
+    const lines = [''];
+    const maxLineWidth = 150; 
+    let lineNum = 0;
+
+    for(let i =0; i < words.length; i++){
+        if(ctx.measureText(lines[lineNum] + words[i]).width <= maxLineWidth){
+            lines[lineNum] += words[i] + ' ';
+        }else{
+            lineNum++;
+            lines[lineNum] = '';
+            i--;
+        }
+    }
+
+    // find the longest line
+    let textWidth = lines.reduce((maxWidth, line) => {
+        const lineWidth = ctx.measureText(line).width;
+        return Math.max(maxWidth, lineWidth);
+    },0);
+
     let textRect = ctx.measureText(text);
-    let textWidth = textRect.width;
-    let textHeight = textRect.fontBoundingBoxAscent + textRect.fontBoundingBoxDescent;
+    let lineHeight = textRect.fontBoundingBoxAscent + textRect.fontBoundingBoxDescent;
+    let textHeight = (numLines) => numLines * lineHeight;
+
     let padding = 8;
 
     ctx.fillStyle = "black";
+
+    // build the size of the background
+    const x = (interactBox.x + interactBox.width/2) * SCALE - textWidth/2 - padding;
+    const y = (interactBox.y * SCALE) - 32 - padding/2 - textHeight(lines.length-1);
+    const width = textWidth + 2 * padding;
+    const height = textHeight(lines.length) + padding;
+
     ctx.fillRect(
-        (interactBox.x + interactBox.width/2) * SCALE - textWidth/2 - padding,
-        (interactBox.y * SCALE) - 32 - padding/2,
-        textWidth + 2 * padding,
-        textHeight + padding);
+        x + modifyX,
+        y + modifyY,
+        width,
+        height);
 
     ctx.fillStyle = color;
-    ctx.fillText(text, (interactBox.x + interactBox.width/2) * SCALE - textRect.width/2, (interactBox.y * SCALE) - 32);
+
+    // write text line by line
+    for(let i =0; i< lines.length; i++){
+        ctx.fillText(lines[i], 
+            (interactBox.x + interactBox.width/2) * SCALE - textWidth/2 + modifyX, 
+            (interactBox.y * SCALE) + (i * lineHeight) - 32 + modifyY - textHeight(lines.length - 1));
+    }
 }
 
 function drawTooltips()
@@ -2769,13 +2852,123 @@ function drawNotification()
     }
 }
 
+function drawRoleDescription(){
+    if(getActiveWindow() != "role") return;
+    ctx.save();
+
+    ctx.fillStyle = "white";
+    ctx.fillRect(16*10*SCALE, 16*7*SCALE, 16*22*SCALE, 16*13*SCALE);
+    ctx.strokeStyle = "black";
+    ctx.lineWidth = 4;
+    ctx.strokeRect(16*10*SCALE, 16*7*SCALE, 16*22*SCALE, 16*13*SCALE);
+
+    ctx.font = "24px o mono";
+    ctx.fillStyle = "black";
+    ctx.fillText("Role description", 16*11*SCALE, 16*7.5*SCALE);
+
+    ctx.font = "16px o mono";
+
+    switch(role){
+        case 'doctor':
+            ctx.fillStyle = "black";
+            ctx.font = "20px o mono";
+            ctx.fillText("Doctor", 16*11*SCALE, 16*10*SCALE);
+            ctx.fillText("- Can heal 2 sick villagers per day for free", 16*11*SCALE, 16*11*SCALE);
+            ctx.fillText("- Number of free heals increases per level of", 16*11*SCALE, 16*12*SCALE);
+            ctx.fillText("  housing", 16*11*SCALE, 16*13*SCALE);
+            ctx.fillText("- Other players receive 1 free heal per day", 16*11*SCALE, 16*14*SCALE);
+            ctx.fillStyle = "cornflowerblue";
+            ctx.fillText("- Skill: makes a villager immune from sickness", 16*11*SCALE, 16*15*SCALE);
+            ctx.fillText("  until the next mutation", 16*11*SCALE, 16*16*SCALE);
+            break;
+        case 'chief':
+            ctx.fillStyle = "black";
+            ctx.font = "20px o mono";
+            ctx.fillText("Chief (required)", 16*11*SCALE, 16*10*SCALE);
+            ctx.fillText("- The only role who can assign villagers to", 16*11*SCALE, 16*11*SCALE);
+            ctx.fillText("  facilities", 16*11*SCALE, 16*12*SCALE);
+            ctx.fillStyle = "cornflowerblue";
+            ctx.fillText("- Skill: village reputation increases by 1", 16*11*SCALE, 16*13*SCALE);
+            ctx.fillText("- If reputation reaches 3, a new villager joins the", 16*11*SCALE, 16*14*SCALE);
+            ctx.fillText("  village", 16*11*SCALE, 16*15*SCALE);
+            break;
+        case 'scientist':
+            ctx.fillStyle = "black";
+            ctx.font = "20px o mono";
+            ctx.fillText("Scientist", 16*11*SCALE, 16*10*SCALE);
+            ctx.fillText("- Makes apple trees available", 16*11*SCALE, 16*11*SCALE);
+            ctx.fillStyle = "cornflowerblue";
+            ctx.fillText("- Skill: predicts if the next event is good or bad", 16*11*SCALE, 16*12*SCALE);
+            break;
+        case 'sociologist':
+            ctx.fillStyle = "black";
+            ctx.font = "20px o mono";
+            ctx.fillText("Sociologist", 16*11*SCALE, 16*10*SCALE);
+            ctx.fillText("- Can view villagers' exact happiness levels", 16*11*SCALE, 16*11*SCALE);
+            ctx.fillText(" (hotkey = shift)", 16*11*SCALE, 16*12*SCALE)
+            ctx.fillStyle = "cornflowerblue";
+            ctx.fillText("- Skill: eliminates a villager's least effective", 16*11*SCALE, 16*13*SCALE);
+            ctx.fillText("  and least favorite task until the next mutation", 16*11*SCALE, 16*14*SCALE);
+            break;
+        case 'farmer':
+            ctx.fillStyle = "black";
+            ctx.font = "20px o mono";
+            ctx.fillText("Farmer", 16*11*SCALE, 16*10*SCALE);
+            ctx.fillText("- Seeds planted by the farmer grow faster by 1 day", 16*11*SCALE, 16*11*SCALE);
+            ctx.fillText("- Can purchase seeds from the shop", 16*11*SCALE, 16*12*SCALE);
+            ctx.fillStyle = "cornflowerblue";
+            ctx.fillText("- Skill: turns a piece of farmland into fertilized", 16*11*SCALE, 16*13*SCALE);
+            ctx.fillText("  farmland", 16*11*SCALE, 16*14*SCALE)
+            ctx.fillText("- Fertilized farmland produce more crops than", 16*11*SCALE, 16*15*SCALE);
+            ctx.fillText("  normal", 16*11*SCALE, 16*16*SCALE);
+            break;
+        case 'engineer':
+            ctx.fillStyle = "black";
+            ctx.font = "20px o mono";
+            ctx.fillText("Engineer", 16*11*SCALE, 16*10*SCALE);
+            ctx.fillText("- Can upgrade materials with money, success chance", 16*11*SCALE, 16*11*SCALE);
+            ctx.fillText("  increases with education level", 16*11*SCALE, 16*12*SCALE);
+            ctx.fillText("- Upgraded materials increase more progress when", 16*11*SCALE, 16*13*SCALE);
+            ctx.fillText("  used on facilities", 16*11*SCALE, 16*14*SCALE);
+            ctx.fillText("- Can purchase steel from the shop", 16*11*SCALE, 16*15*SCALE);
+            ctx.fillStyle = "cornflowerblue";
+            ctx.fillText("- Skill: converts every brick in inventory into", 16*11*SCALE, 16*16*SCALE);
+            ctx.fillText("  steel", 16*11*SCALE, 16*17*SCALE);
+            break;
+    }
+}
+
+function drawToolTipIcons(){
+    drawToolTipIcon(toolTips.skill);
+    drawToolTipIcon(toolTips.shop);
+    drawToolTipIcon(toolTips.event)
+    drawToolTipIcon(toolTips.inventory)
+    
+    if(mouseInteract(toolTips.skill)){
+        drawTooltip(toolTips.skill.interactBox, "Apply special skill to this turn", "white","18px o mono", -75);
+    }
+    
+    if(mouseInteract(toolTips.shop)){
+        drawTooltip(toolTips.shop.interactBox, "Hire additional experts, buy seeds (Farmer), and buy steel (Engineer)", "white", "18px o mono");
+    }
+
+
+    if(mouseInteract(toolTips.event)){
+        drawTooltip(toolTips.event.interactBox, eventDescription, "white","18px o mono", -75);
+    }
+
+    if(mouseInteract(toolTips.inventory)){
+        drawTooltip(toolTips.inventory.interactBox, "Inventory items for feeding villagers, planting seeds, and fixing facilities", "white", "18px o mono");
+    }
+}
+
 export function draw()
 {
     labelSelected = null;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(img.background, 0, 0, img.background.width * SCALE, img.background.height * SCALE);
-    
+
     drawFacilities();
     drawFarmland();
     drawTrees();
@@ -2792,13 +2985,14 @@ export function draw()
     drawLoot();
     drawInventory();
     drawShop();
+    drawRoleDescription();
 
     drawTooltips();
     drawLabel();
     drawHeldItemStack();
     drawNotification();
 
-    
+    drawToolTipIcons();
 
     DayNotification.draw();
 
