@@ -6,14 +6,17 @@ import {img} from "../assets.js";
 import * as sm from "../src/SceneManager.js";
 import { Button } from "../src/Button.js";
 import { TextField } from "../src/TextField.js";
+import { HelpModal } from "./HelpModal.js";  // Add this line
 
 
 const buttons = {
     hostGame: new Button(4*16, 10*16, 6*16, 2*16, "pink", "host game"),
     reconnect: new Button(4*16, 13*16, 6*16, 2*16, "pink", "reconnect"),
     joinGame: new Button(16*16, 13*16, 6*16, 2*16, "pink", "join game"),
+    help: new Button(16*11, 16*16, 4*16, 1.5*16, "pink", "help"),
     credits: new Button(16*11, 16*18, 4*16, 1.5*16, "pink", "credits"),
 };
+
 
 const textFields = {
     playerName: new TextField(8*16, 7*16, 10*16, 1*16, "player name", 20),
@@ -25,6 +28,9 @@ let selectedTextField = null;
 let errorMessage = "";
 
 let prevGame = null;
+
+let helpModal = null;
+
 
 
 function onClick(e)
@@ -63,6 +69,15 @@ function onClick(e)
         socket.emit("join_game", playerName, textFields.roomCode.text);
         return;
     }
+
+    if(buttonClick(buttons.help))
+        {
+            if (!helpModal) {
+                helpModal = new HelpModal();
+            }
+            helpModal.show();
+            return;
+        }
 
     if(buttonClick(buttons.credits))
     {
@@ -143,6 +158,9 @@ function _init()
     buttons.joinGame.enabled = (textFields.playerName.text.length > 0 && textFields.roomCode.text.length > 0);
     buttons.reconnect.enabled = false;
 
+    buttons.help.interactBox.y = 15.5 * 16;  // Move up slightly
+    buttons.credits.interactBox.y = 18 * 16; // Move down slightly
+
     canvas.addEventListener("click", onClick);
     window.addEventListener("keydown", onKeyDown);
 
@@ -205,9 +223,16 @@ function drawTextField(textField)
 
 export function draw()
 {
+    if(sm.currentScene != sm.SCENE.menu) {
+        // If we're not in the menu scene, stop the animation loop
+        cancelAnimationFrame(animationFrameId);
+        animationFrameId = null;
+        return;
+    }
+
     if(!document.fonts.check("48px Kenney Mini Square"))
     {
-        requestAnimationFrame(draw);
+        animationFrameId = requestAnimationFrame(draw);
         return;
     }
 
@@ -225,6 +250,7 @@ export function draw()
     drawButton(buttons.hostGame);
     drawButton(buttons.joinGame);
     drawButton(buttons.reconnect);
+    drawButton(buttons.help);
     drawButton(buttons.credits);
 
     ctx.font = "20px Kenney Mini Square";
@@ -236,6 +262,10 @@ export function draw()
     ctx.textBaseline = "bottom";
     ctx.fillText("v1.2", 20*SCALE, canvas.height - 20*SCALE);
 
-    if(sm.currentScene == sm.SCENE.menu)
-        requestAnimationFrame(draw);
+    if (helpModal && helpModal.isVisible) {
+        helpModal.draw(ctx);
+    }
+
+    // Request the next animation frame
+    animationFrameId = requestAnimationFrame(draw);
 }
