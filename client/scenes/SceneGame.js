@@ -997,6 +997,7 @@ export function init()
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("keyup", onKeyUp);
 
+    buttons.help.enabled = true;
     currentTurn = 0;
     actionPoints = 0;
     skillUsed = false;

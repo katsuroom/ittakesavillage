@@ -5,7 +5,7 @@ export class NotificationSeason extends Notification {
     constructor(season)
     {
         let text = "the season is now " + season;
-        super(text, 3000);
+        super(text, 3500);
     }
 
     draw(ctx, scale)
