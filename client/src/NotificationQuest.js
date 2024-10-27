@@ -7,7 +7,7 @@ export class NotificationQuest extends Notification {
     constructor(villager, playerName, drawExtra)
     {
         let text = playerName + " has completed a quest!";
-        super(text, 3000);
+        super(text, 3500);
 
         this.villager = villager;
         this.playerName = playerName;
