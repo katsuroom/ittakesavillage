@@ -56,15 +56,31 @@ To win the game, you must upgrade all four main facilities (Water, Farming, Educ
 Remember, communication and cooperation between all players are key to success in "It Takes a Village"!`;
         this.scrollOffset = 0;
         this.lineHeight = 20;
+        
+        // Bind the event handlers to maintain correct 'this' context
+        this.boundHandleClick = this.handleClick.bind(this);
+        this.boundHandleScroll = this.handleScroll.bind(this);
     }
 
     show() {
         this.isVisible = true;
         this.scrollOffset = 0;
+        // Add event listeners when showing the modal
+        const canvas = document.querySelector('canvas');
+        if (canvas) {
+            canvas.addEventListener('click', this.boundHandleClick);
+            canvas.addEventListener('wheel', this.boundHandleScroll);
+        }
     }
 
     hide() {
         this.isVisible = false;
+        // Remove event listeners when hiding the modal
+        const canvas = document.querySelector('canvas');
+        if (canvas) {
+            canvas.removeEventListener('click', this.boundHandleClick);
+            canvas.removeEventListener('wheel', this.boundHandleScroll);
+        }
     }
 
     draw(ctx) {
@@ -121,10 +137,6 @@ Remember, communication and cooperation between all players are key to success i
             ctx.lineTo(modalX + modalWidth / 2 + 10, modalY + modalHeight - 30);
             ctx.fill();
         }
-
-        // Add event listeners
-        ctx.canvas.addEventListener('click', this.handleClick.bind(this));
-        ctx.canvas.addEventListener('wheel', this.handleScroll.bind(this));
     }
 
     drawText(ctx, text, x, y, maxWidth, maxHeight) {
@@ -169,20 +181,32 @@ Remember, communication and cooperation between all players are key to success i
     }
 
     handleClick(e) {
-        const modalWidth = e.target.width * 0.8;
-        const modalHeight = e.target.height * 0.8;
-        const modalX = (e.target.width - modalWidth) / 2;
-        const modalY = (e.target.height - modalHeight) / 2;
+        // Get the canvas and its bounding rectangle
+        const canvas = e.target;
+        const rect = canvas.getBoundingClientRect();
+        
+        // Calculate the actual position within the canvas
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        
+        // Convert client coordinates to canvas coordinates
+        const canvasX = (e.clientX - rect.left) * scaleX;
+        const canvasY = (e.clientY - rect.top) * scaleY;
 
+        // Calculate modal dimensions
+        const modalWidth = canvas.width * 0.8;
+        const modalHeight = canvas.height * 0.8;
+        const modalX = (canvas.width - modalWidth) / 2;
+        const modalY = (canvas.height - modalHeight) / 2;
+
+        // Check if click is within close button bounds
         if (
-            e.clientX > modalX + modalWidth - 40 &&
-            e.clientX < modalX + modalWidth - 10 &&
-            e.clientY > modalY + 10 &&
-            e.clientY < modalY + 40
+            canvasX > modalX + modalWidth - 40 &&
+            canvasX < modalX + modalWidth - 10 &&
+            canvasY > modalY + 10 &&
+            canvasY < modalY + 40
         ) {
             this.hide();
-            e.target.removeEventListener('click', this.handleClick);
-            e.target.removeEventListener('wheel', this.handleScroll);
         }
     }
 
