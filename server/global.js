@@ -168,6 +168,8 @@ const DAILY_LOOT = new RandomTable([
 
 const LOOT_AMOUNT = 2;
 
+const SPEED_MODE_DAYS = 6;
+
 module.exports = {
     FARMLAND_COUNT,
     FARMLAND_UNLOCKED,
@@ -193,5 +195,6 @@ module.exports = {
     EVENTS_AUTUMN,
     EVENTS_WINTER,
     DAILY_LOOT,
-    LOOT_AMOUNT
+    LOOT_AMOUNT,
+    SPEED_MODE_DAYS
 };

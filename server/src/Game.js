@@ -272,6 +272,10 @@ class Game {
     {
         this.event = global.EVENTS["cloudy_day"];
         this.event.duration = 3;
+        // faster event changes for speed mode
+        if(this.difficulty === 'speed'){
+            this.event.duration = 2;
+        }
         this.nextEvent = this.getNextEvent();
     }
 
@@ -935,6 +939,10 @@ class Game {
         this.checkQuest();
 
         this.updateEvent();
+    }
+
+    changeSeasonDays(numDays){
+        this.daysUntilNextSeason.forEach(season => season.setDays(numDays));
     }
 };
 

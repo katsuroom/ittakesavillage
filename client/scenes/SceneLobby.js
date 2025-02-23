@@ -70,7 +70,7 @@ function onClick(e)
     if(buttonClick(buttons.easy))           { socket.emit("select_difficulty", roomId, "easy"); return; }
     if(buttonClick(buttons.normal))         { socket.emit("select_difficulty", roomId, "normal"); return; }
     if(buttonClick(buttons.hard))           { socket.emit("select_difficulty", roomId, "hard"); return; }
-    if(buttonClick(buttons.speed))           { socket.emit("select_difficulty", roomId, "speed"); return;}
+    if(buttonClick(buttons.speed))          { socket.emit("select_difficulty", roomId, "speed"); return; }
 
     if(buttonClick(buttons.ready))
     {

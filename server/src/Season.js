@@ -4,6 +4,10 @@ class Season {
         this.name = name;
         this.days = days;
     }
+
+    setDays(days){
+        this.days = days;
+    }
 };
 
 module.exports = Season;
