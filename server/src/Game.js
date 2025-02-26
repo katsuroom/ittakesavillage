@@ -272,6 +272,10 @@ class Game {
     {
         this.event = global.EVENTS["cloudy_day"];
         this.event.duration = 3;
+        // faster event changes for speed mode
+        if(this.difficulty === 'speed'){
+            this.event.duration = 2;
+        }
         this.nextEvent = this.getNextEvent();
     }
 
@@ -907,7 +911,8 @@ class Game {
                     if(i < global.SEASONS.length - 1)
                     {
                         this.season = global.SEASONS[i+1].name;
-                        this.daysUntilNextSeason = global.SEASONS[i+1].days;
+                        // when season ends if the game mode is speed mode then we keep 6 days per season
+                        this.daysUntilNextSeason = this.difficulty === 'speed' ? global.SPEED_MODE_DAYS : global.SEASONS[i+1].days;
                     }
                     if(i < global.SEASONS.length - 2)
                         this.nextSeason = global.SEASONS[i+2].name;
@@ -935,6 +940,10 @@ class Game {
         this.checkQuest();
 
         this.updateEvent();
+    }
+
+    changeSeasonDays(numDays){
+        this.daysUntilNextSeason = numDays
     }
 };
 

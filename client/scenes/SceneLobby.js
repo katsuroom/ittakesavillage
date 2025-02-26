@@ -19,6 +19,7 @@ const buttons = {
     easy:           new Button(14*16, 0.5*16, 4*16, 1.5*16, "purple", "easy"),
     normal:         new Button(18.5*16, 0.5*16, 4*16, 1.5*16, "purple", "normal"),
     hard:           new Button(23*16, 0.5*16, 4*16, 1.5*16, "purple", "hard"),
+    speed:          new Button(9.5*16, 0.5*16, 4*16, 1.5*16, "purple", "speed"),
 
     ready:          new Button(13.5*16, 20*16, 4*16, 1.5*16, "red", "ready"),
 };
@@ -69,6 +70,7 @@ function onClick(e)
     if(buttonClick(buttons.easy))           { socket.emit("select_difficulty", roomId, "easy"); return; }
     if(buttonClick(buttons.normal))         { socket.emit("select_difficulty", roomId, "normal"); return; }
     if(buttonClick(buttons.hard))           { socket.emit("select_difficulty", roomId, "hard"); return; }
+    if(buttonClick(buttons.speed))          { socket.emit("select_difficulty", roomId, "speed"); return; }
 
     if(buttonClick(buttons.ready))
     {
@@ -145,6 +147,15 @@ export function draw()
     // role and difficulty descriptions
     switch(true)
     {
+        case mouseInteract(buttons.speed):
+            ctx.fillStyle = "purple";
+            ctx.font = "20px o mono";
+            ctx.fillText("Speed mode", 3*16*SCALE, 14*16*SCALE);
+            ctx.fillText("8 villagers", 3*16*SCALE, 15*16*SCALE);
+            ctx.fillText("6 days per season", 3*16*SCALE, 16*16*SCALE);
+            ctx.fillText("Easier to upgrade building", 3*16*SCALE, 17*16*SCALE);
+            ctx.fillText("More frequent changes in event with standard probability", 3*16*SCALE, 18*16*SCALE);
+            break;
         case mouseInteract(buttons.easy):
             ctx.fillStyle = "purple";
             ctx.font = "20px o mono";

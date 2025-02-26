@@ -154,6 +154,10 @@ function selectDifficulty(roomId, difficulty)
     games[roomId].players.forEach(player => {
         io.sockets.to(player.id).emit("select_difficulty", difficulty);
     });
+
+    if(games[roomId].difficulty = "speed"){
+        games[roomId].changeSeasonDays(global.SPEED_MODE_DAYS);
+    }
 }
 
 function ready(socket, roomId)
