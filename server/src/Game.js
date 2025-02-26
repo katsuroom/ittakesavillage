@@ -902,12 +902,6 @@ class Game {
 
     updateSeason()
     {
-        // when season ends if the game mode is speed mode then we keep 6 days per season
-        if(this.difficulty === 'speed'){
-            this.daysUntilNextSeason = global.SPEED_MODE_DAYS;
-            return;
-        }
-
         if(this.daysUntilNextSeason == 0)
         {
             for(let i = 0; i < global.SEASONS.length; i++)
@@ -917,7 +911,8 @@ class Game {
                     if(i < global.SEASONS.length - 1)
                     {
                         this.season = global.SEASONS[i+1].name;
-                        this.daysUntilNextSeason = global.SEASONS[i+1].days;
+                        // when season ends if the game mode is speed mode then we keep 6 days per season
+                        this.daysUntilNextSeason = this.difficulty === 'speed' ? global.SPEED_MODE_DAYS : global.SEASONS[i+1].days;
                     }
                     if(i < global.SEASONS.length - 2)
                         this.nextSeason = global.SEASONS[i+2].name;
