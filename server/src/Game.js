@@ -942,7 +942,7 @@ class Game {
     }
 
     changeSeasonDays(numDays){
-        this.daysUntilNextSeason.forEach(season => season.setDays(numDays));
+        this.daysUntilNextSeason = numDays
     }
 };
 
