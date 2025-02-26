@@ -905,6 +905,7 @@ class Game {
         // when season ends if the game mode is speed mode then we keep 6 days per season
         if(this.difficulty === 'speed'){
             this.daysUntilNextSeason = global.SPEED_MODE_DAYS;
+            return;
         }
 
         if(this.daysUntilNextSeason == 0)
