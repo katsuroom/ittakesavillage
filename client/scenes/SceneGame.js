@@ -190,14 +190,24 @@ socket.on("change_turn", (_currentTurn) => {
 
     if(role == "doctor")
     {
-        switch(facilities["housing"].level)
-        {
-            case 1: healChances = 2; break;
-            case 2: healChances = 3; break;
-            case 3: healChances = 3; break;
-            case 4: healChances = 4; break;
-            case 5: healChances = 5; break;
-            default: break;
+        if(difficulty === 'speed') {
+            switch(facilities["housing"].level)
+            {
+                case 1: healChances = 3; break;
+                case 2: healChances = 4; break;
+                case 3: healChances = 5; break;
+                default: break;
+            }
+        } else {
+            switch(facilities["housing"].level)
+            {
+                case 1: healChances = 2; break;
+                case 2: healChances = 3; break;
+                case 3: healChances = 3; break;
+                case 4: healChances = 4; break;
+                case 5: healChances = 5; break;
+                default: break;
+            }
         }
     }
     else
@@ -376,7 +386,8 @@ socket.on("facility", (_facility) => {
     upgrades = facilities["water"].level + facilities["farming"].level + facilities["education"].level + facilities["housing"].level - 4;
 
     // win condition
-    if(upgrades >= 12)
+    const winThreshold = difficulty === 'speed' ? 8 : 12; // 8 for speed mode (level 3 on all) vs 12 for regular (level 4 on all)
+    if(upgrades >= winThreshold)
     {
         sm.loadScene(sm.SCENE.win);
         return;
@@ -1545,14 +1556,24 @@ function upgradeMaterial(itemStack)
 
 function getUpgradeSuccessChance()  // float
 {
-    switch(facilities["education"].level)
-    {
-        case 1: return 0.5;
-        case 2: return 0.6;
-        case 3: return 0.7;
-        case 4: return 0.8;
-        case 5: return 1.0;
-        default: return -1;
+    if(difficulty === 'speed') {
+        switch(facilities["education"].level)
+        {
+            case 1: return 0.7;
+            case 2: return 0.85;
+            case 3: return 1.0;
+            default: return -1;
+        }
+    } else {
+        switch(facilities["education"].level)
+        {
+            case 1: return 0.5;
+            case 2: return 0.6;
+            case 3: return 0.7;
+            case 4: return 0.8;
+            case 5: return 1.0;
+            default: return -1;
+        }
     }
 }
 

@@ -155,6 +155,7 @@ export function draw()
             ctx.fillText("6 days per season", 3*16*SCALE, 16*16*SCALE);
             ctx.fillText("Easier to upgrade building", 3*16*SCALE, 17*16*SCALE);
             ctx.fillText("More frequent changes in event with standard probability", 3*16*SCALE, 18*16*SCALE);
+            ctx.fillText("Facilities provide better bonuses at lower levels", 3*16*SCALE, 19*16*SCALE);
             break;
         case mouseInteract(buttons.easy):
             ctx.fillStyle = "purple";

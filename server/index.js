@@ -157,6 +157,7 @@ function selectDifficulty(roomId, difficulty)
 
     if(games[roomId].difficulty = "speed"){
         games[roomId].changeSeasonDays(global.SPEED_MODE_DAYS);
+        games[roomId].updateFacilityProgressRequirements();
     }
 }
 

@@ -6,6 +6,7 @@ const Tree = require("./Tree.js");
 const global = require("../global.js");
 
 class Game {
+    
 
     static io = null;
 
@@ -59,12 +60,13 @@ class Game {
         this.farm = [];
         this.trees = [];
 
+        // Modified for speed mode - lower initial progress requirements
         this.facilities = {
-            "water": new Facility(20),
-            "farming": new Facility(20),
-            "education": new Facility(20),
-            "housing": new Facility(20),
-            "power": new Facility(12)
+            "water": new Facility(this.difficulty === 'speed' ? 10 : 20),
+            "farming": new Facility(this.difficulty === 'speed' ? 10 : 20),
+            "education": new Facility(this.difficulty === 'speed' ? 10 : 20),
+            "housing": new Facility(this.difficulty === 'speed' ? 10 : 20),
+            "power": new Facility(this.difficulty === 'speed' ? 6 : 12)
         };
 
         this.actions = [];      // data collection purpose only
@@ -295,8 +297,15 @@ class Game {
         tree.cut = true;
     }
 
+    
+
+    // Modified for speed mode - adjust progression and max level
     upgradeFacility(facility)
     {
+        if(facility.progress < facility.progressMax) {
+            return false; // Indicates upgrade was not possible
+        }
+        
         if(facility.label == "power")
         {
             facility.level++;
@@ -305,34 +314,53 @@ class Game {
 
         facility.progress = 0;
         facility.level++;
-        switch(facility.level)
-        {
-            case 2:
-                facility.progressMax = 30;
-                // facility.cost["brick"] = 5;
-                // facility.cost["steel"] = 1;
-                break;
-            case 3:
-                facility.progressMax = 40;
-                // facility.cost["brick"] = 8;
-                // facility.cost["steel"] = 2;
-                break;
-            case 4:
-                facility.progressMax = 60;
-                // facility.cost["brick"] = 10;
-                // facility.cost["steel"] = 5;
-                break;
-            case 5:
-                break;
-            default:
-                break;
+        
+        // Regular mode progression
+        if(this.difficulty !== 'speed') {
+            switch(facility.level)
+            {
+                case 2:
+                    facility.progressMax = 30;
+                    break;
+                case 3:
+                    facility.progressMax = 40;
+                    break;
+                case 4:
+                    facility.progressMax = 60;
+                    break;
+                case 5:
+                    break;
+                default:
+                    break;
+            }
+        } 
+        // Speed mode progression - half the values and max level 3
+        else {
+            switch(facility.level)
+            {
+                case 2:
+                    facility.progressMax = 15; 
+                    break;
+                case 3:
+                    facility.progressMax = 20;
+                    break;
+                default:
+                    break;
+            }
         }
 
-        if(facility.label == "water" && facility.level < 5)
+        const maxLevel = this.difficulty === 'speed' ? 3 : 5;
+        
+        if(facility.label == "water" && facility.level < maxLevel)
         {
-            // unlock 8 farmland
-            for(let i = 0; i < 8; i++)
-                this.farm[(facility.level - 1) * 8 + i].locked = false;
+            // In speed mode, unlock more farmland per level
+            const farmsPerLevel = this.difficulty === 'speed' ? 16 : 8;
+            for(let i = 0; i < farmsPerLevel; i++) {
+                const index = (facility.level - 1) * farmsPerLevel + i;
+                if(index < this.farm.length) {
+                    this.farm[index].locked = false;
+                }
+            }
         }
 
         if(facility.label == "farming")
@@ -361,7 +389,7 @@ class Game {
 
             if(villager.currentTask == "power") return;
 
-            if(this.facilities[villager.currentTask].level >= 5) return;
+            if(this.facilities[villager.currentTask].level >= (this.difficulty === 'speed' ? 3 : 5)) return;
 
             let baseProgress = 2;
 
@@ -370,30 +398,53 @@ class Game {
 
             let leastEffectiveMult, mostEffectiveMult = 0;
 
-            switch(this.facilities["education"].level)
-            {
-                case 1:
-                    leastEffectiveMult = 0.75;
-                    mostEffectiveMult = 1.25;        // 1.5
-                    break;
-                case 2:
-                    leastEffectiveMult = 0.9;
-                    mostEffectiveMult = 1.5;        // 1.6
-                    break;
-                case 3:
-                    leastEffectiveMult = 1;
-                    mostEffectiveMult = 1.75;        // 1.7
-                    break;
-                case 4:
-                    leastEffectiveMult = 1.25;
-                    mostEffectiveMult = 2;       // 1.85
-                    break;
-                case 5:
-                    leastEffectiveMult = 1.5;
-                    mostEffectiveMult = 2.5;          // 2
-                    break;
-                default:
-                    break;
+            // Modified for speed mode - improved education multipliers
+            if(this.difficulty === 'speed') {
+                // Speed mode - better multipliers at lower levels
+                switch(this.facilities["education"].level)
+                {
+                    case 1:
+                        leastEffectiveMult = 0.9;
+                        mostEffectiveMult = 1.75;
+                        break;
+                    case 2:
+                        leastEffectiveMult = 1.25;
+                        mostEffectiveMult = 2.25;
+                        break;
+                    case 3:
+                        leastEffectiveMult = 1.5;
+                        mostEffectiveMult = 2.5;
+                        break;
+                    default:
+                        break;
+                }
+            } else {
+                // Regular mode
+                switch(this.facilities["education"].level)
+                {
+                    case 1:
+                        leastEffectiveMult = 0.75;
+                        mostEffectiveMult = 1.25;
+                        break;
+                    case 2:
+                        leastEffectiveMult = 0.9;
+                        mostEffectiveMult = 1.5;
+                        break;
+                    case 3:
+                        leastEffectiveMult = 1;
+                        mostEffectiveMult = 1.75;
+                        break;
+                    case 4:
+                        leastEffectiveMult = 1.25;
+                        mostEffectiveMult = 2;
+                        break;
+                    case 5:
+                        leastEffectiveMult = 1.5;
+                        mostEffectiveMult = 2.5;
+                        break;
+                    default:
+                        break;
+                }
             }
 
             let totalProgress = 0;
@@ -451,17 +502,30 @@ class Game {
         });
     }
 
+    // Modified for speed mode - better crop yields at each level
     updateFarmlandAmount()
     {
         this.farm.forEach(farmland => {
-            switch(this.facilities["farming"].level)
-            {
-                case 1: farmland.amount = 2; break;
-                case 2: farmland.amount = 3; break;
-                case 3: farmland.amount = 4; break;
-                case 4: farmland.amount = 5; break;
-                case 5: farmland.amount = 8; break;
-                default: break;
+            if(this.difficulty === 'speed') {
+                // Speed mode - better yields at lower levels
+                switch(this.facilities["farming"].level)
+                {
+                    case 1: farmland.amount = 3; break;
+                    case 2: farmland.amount = 5; break;
+                    case 3: farmland.amount = 8; break;
+                    default: break;
+                }
+            } else {
+                // Regular mode
+                switch(this.facilities["farming"].level)
+                {
+                    case 1: farmland.amount = 2; break;
+                    case 2: farmland.amount = 3; break;
+                    case 3: farmland.amount = 4; break;
+                    case 4: farmland.amount = 5; break;
+                    case 5: farmland.amount = 8; break;
+                    default: break;
+                }
             }
         });
     }
@@ -692,15 +756,26 @@ class Game {
                 }
             case "disease":
                 {
+                    // Modified for speed mode - reduced disease chance at lower levels
                     let diseaseChance = 0;
-                    switch(this.facilities["water"].level)
-                    {
-                        case 1: diseaseChance = 0.2; break;
-                        case 2: diseaseChance = 0.15; break;
-                        case 3: diseaseChance = 0.1; break;
-                        case 4: diseaseChance = 0.05; break;
-                        case 5: diseaseChance = 0; break;
-                        default: break;
+                    if(this.difficulty === 'speed') {
+                        switch(this.facilities["water"].level)
+                        {
+                            case 1: diseaseChance = 0.15; break;
+                            case 2: diseaseChance = 0.05; break;
+                            case 3: diseaseChance = 0; break;
+                            default: break;
+                        }
+                    } else {
+                        switch(this.facilities["water"].level)
+                        {
+                            case 1: diseaseChance = 0.2; break;
+                            case 2: diseaseChance = 0.15; break;
+                            case 3: diseaseChance = 0.1; break;
+                            case 4: diseaseChance = 0.05; break;
+                            case 5: diseaseChance = 0; break;
+                            default: break;
+                        }
                     }
 
                     this.villagers.forEach(villager => {
@@ -748,15 +823,26 @@ class Game {
         {
             case "drought":
                 {
+                    // Modified for speed mode - reduced drought chance at lower levels
                     let droughtChance = 0;
-                    switch(this.facilities["water"].level)
-                    {
-                        case 1: droughtChance = 0.6; break;
-                        case 2: droughtChance = 0.45; break;
-                        case 3: droughtChance = 0.3; break;
-                        case 4: droughtChance = 0.15; break;
-                        case 5: droughtChance = 0; break;
-                        default: break;
+                    if(this.difficulty === 'speed') {
+                        switch(this.facilities["water"].level)
+                        {
+                            case 1: droughtChance = 0.45; break;
+                            case 2: droughtChance = 0.2; break;
+                            case 3: droughtChance = 0; break;
+                            default: break;
+                        }
+                    } else {
+                        switch(this.facilities["water"].level)
+                        {
+                            case 1: droughtChance = 0.6; break;
+                            case 2: droughtChance = 0.45; break;
+                            case 3: droughtChance = 0.3; break;
+                            case 4: droughtChance = 0.15; break;
+                            case 5: droughtChance = 0; break;
+                            default: break;
+                        }
                     }
 
                     this.farm.forEach(farmland => {
@@ -826,6 +912,8 @@ class Game {
             }
             else
                 this.event = this.nextEvent;
+
+            this.event = this.nextEvent;
 
             this.eventStart(this.event);
 
@@ -897,6 +985,12 @@ class Game {
 
         event.duration = Math.floor(Math.random() * (global.EVENT_DURATION_MAX - global.EVENT_DURATION_MIN + 1))
             + global.EVENT_DURATION_MIN;
+            
+        // faster event changes for speed mode
+        if(this.difficulty === 'speed') {
+            event.duration = 2;
+        }
+            
         return event;
     }
 
@@ -944,6 +1038,16 @@ class Game {
 
     changeSeasonDays(numDays){
         this.daysUntilNextSeason = numDays
+    }
+
+    updateFacilityProgressRequirements() {
+            if(this.difficulty === 'speed') {
+                this.facilities["water"].progressMax = 10;
+                this.facilities["farming"].progressMax = 10;
+                this.facilities["education"].progressMax = 10;
+                this.facilities["housing"].progressMax = 10;
+                this.facilities["power"].progressMax = 6;
+        }
     }
 };
 
