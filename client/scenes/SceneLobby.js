@@ -244,3 +244,5 @@ export function draw()
     if(sm.currentScene == sm.SCENE.lobby)
         requestAnimationFrame(draw);
 }
+
+export {difficulty}

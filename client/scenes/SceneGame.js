@@ -16,6 +16,7 @@ import { NotificationFlee } from "../src/NotificationFlee.js";
 import { NotificationQuest } from "../src/NotificationQuest.js";
 import { DayNotification } from "../src/DayNotification.js";
 import { ToolTip } from "../src/ToolTip.js";
+import { difficulty } from "./SceneLobby.js";
 
 
 // game variables ////////////////////////////////////////////////////////////////
